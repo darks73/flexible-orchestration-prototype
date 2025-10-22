@@ -2,14 +2,14 @@
 
 class OrchestrationApp {
     constructor() {
-        this.currentSection = 'dashboard';
+        this.currentSection = 'workflows';
         this.init();
     }
 
     init() {
         this.setupNavigation();
         this.setupEventListeners();
-        this.loadDashboard();
+        this.loadWorkflows();
     }
 
     setupNavigation() {
@@ -42,14 +42,8 @@ class OrchestrationApp {
 
     loadSectionContent(sectionId) {
         switch(sectionId) {
-            case 'dashboard':
-                this.loadDashboard();
-                break;
             case 'workflows':
                 this.loadWorkflows();
-                break;
-            case 'monitoring':
-                this.loadMonitoring();
                 break;
             case 'settings':
                 this.loadSettings();
@@ -57,20 +51,9 @@ class OrchestrationApp {
         }
     }
 
-    loadDashboard() {
-        // Simulate loading dashboard data
-        console.log('Loading dashboard data...');
-        this.updateMetrics();
-    }
-
     loadWorkflows() {
         console.log('Loading workflow management...');
-        // Future implementation for workflow canvas
-    }
-
-    loadMonitoring() {
-        console.log('Loading monitoring data...');
-        // Future implementation for charts and monitoring
+        this.setupWorkflowInteractions();
     }
 
     loadSettings() {
@@ -78,22 +61,57 @@ class OrchestrationApp {
         this.setupSettingsForm();
     }
 
-    updateMetrics() {
-        // Simulate real-time metric updates
-        const metrics = document.querySelectorAll('.metric');
-        metrics.forEach(metric => {
-            const currentValue = parseInt(metric.textContent);
-            const variation = Math.floor(Math.random() * 5) - 2; // -2 to +2
-            const newValue = Math.max(0, currentValue + variation);
-            
-            if (metric.textContent !== newValue.toString()) {
-                metric.style.transform = 'scale(1.1)';
-                metric.textContent = newValue;
-                setTimeout(() => {
-                    metric.style.transform = 'scale(1)';
-                }, 200);
-            }
+    setupWorkflowInteractions() {
+        // Setup workflow node interactions
+        const nodes = document.querySelectorAll('.node');
+        nodes.forEach(node => {
+            node.addEventListener('click', () => {
+                this.selectNode(node);
+            });
         });
+
+        // Setup workflow action buttons
+        const actionButtons = document.querySelectorAll('.workflow-actions .btn-icon');
+        actionButtons.forEach(button => {
+            button.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const action = button.getAttribute('title');
+                this.handleWorkflowAction(action, button);
+            });
+        });
+
+        // Setup toolbar buttons
+        const createBtn = document.querySelector('.toolbar-left .btn-primary');
+        if (createBtn) {
+            createBtn.addEventListener('click', () => {
+                this.createNewWorkflow();
+            });
+        }
+    }
+
+    selectNode(node) {
+        // Remove previous selection
+        document.querySelectorAll('.node').forEach(n => n.classList.remove('selected'));
+        
+        // Add selection to clicked node
+        node.classList.add('selected');
+        
+        console.log('Selected node:', node.querySelector('.node-label').textContent);
+    }
+
+    handleWorkflowAction(action, button) {
+        const workflowItem = button.closest('.workflow-item');
+        const workflowName = workflowItem.querySelector('h4').textContent;
+        
+        console.log(`Action: ${action} on workflow: ${workflowName}`);
+        
+        // Show feedback
+        this.showNotification(`${action} action triggered for ${workflowName}`, 'info');
+    }
+
+    createNewWorkflow() {
+        console.log('Creating new workflow...');
+        this.showNotification('Opening workflow creation dialog...', 'info');
     }
 
     setupSettingsForm() {

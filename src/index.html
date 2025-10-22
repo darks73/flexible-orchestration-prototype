@@ -19,9 +19,7 @@
                 </div>
                 <nav class="nav">
                     <ul class="nav-list">
-                        <li><a href="#dashboard" class="nav-link active">Dashboard</a></li>
-                        <li><a href="#workflows" class="nav-link">Workflows</a></li>
-                        <li><a href="#monitoring" class="nav-link">Monitoring</a></li>
+                        <li><a href="#workflows" class="nav-link active">Workflows</a></li>
                         <li><a href="#settings" class="nav-link">Settings</a></li>
                     </ul>
                 </nav>
@@ -31,63 +29,108 @@
         <!-- Main Content Area -->
         <main class="main-content">
             <div class="content-wrapper">
-                <!-- Dashboard Section -->
-                <section id="dashboard" class="page-section active">
-                    <div class="page-header">
-                        <h2>Dashboard</h2>
-                        <p>Overview of your orchestration system</p>
-                    </div>
-                    <div class="dashboard-grid">
-                        <div class="card">
-                            <h3>Active Workflows</h3>
-                            <div class="metric">12</div>
-                        </div>
-                        <div class="card">
-                            <h3>Completed Today</h3>
-                            <div class="metric">47</div>
-                        </div>
-                        <div class="card">
-                            <h3>System Health</h3>
-                            <div class="metric status-healthy">98%</div>
-                        </div>
-                        <div class="card">
-                            <h3>Active Users</h3>
-                            <div class="metric">23</div>
-                        </div>
-                    </div>
-                </section>
-
                 <!-- Workflows Section -->
-                <section id="workflows" class="page-section">
+                <section id="workflows" class="page-section active">
                     <div class="page-header">
                         <h2>Workflow Management</h2>
                         <p>Create and manage your orchestration workflows</p>
                     </div>
-                    <div class="workflow-canvas">
-                        <div class="canvas-placeholder">
-                            <p>Workflow canvas will be implemented here</p>
+                    <div class="workflow-toolbar">
+                        <div class="toolbar-left">
                             <button class="btn btn-primary">Create New Workflow</button>
+                            <button class="btn btn-secondary">Import Workflow</button>
+                            <button class="btn btn-secondary">Export Workflow</button>
                         </div>
-                    </div>
-                </section>
-
-                <!-- Monitoring Section -->
-                <section id="monitoring" class="page-section">
-                    <div class="page-header">
-                        <h2>System Monitoring</h2>
-                        <p>Real-time monitoring and analytics</p>
-                    </div>
-                    <div class="monitoring-grid">
-                        <div class="chart-container">
-                            <h3>Performance Metrics</h3>
-                            <div class="chart-placeholder">
-                                <p>Performance chart will be implemented here</p>
+                        <div class="toolbar-right">
+                            <div class="workflow-stats">
+                                <span class="stat">Active: <strong>3</strong></span>
+                                <span class="stat">Completed: <strong>12</strong></span>
+                                <span class="stat">Failed: <strong>1</strong></span>
                             </div>
                         </div>
-                        <div class="chart-container">
-                            <h3>Resource Usage</h3>
-                            <div class="chart-placeholder">
-                                <p>Resource usage chart will be implemented here</p>
+                    </div>
+                    
+                    <div class="workflow-canvas">
+                        <div class="canvas-header">
+                            <h3>Workflow Canvas</h3>
+                            <div class="canvas-controls">
+                                <button class="btn-icon" title="Zoom In">+</button>
+                                <button class="btn-icon" title="Zoom Out">-</button>
+                                <button class="btn-icon" title="Reset View">⌂</button>
+                            </div>
+                        </div>
+                        <div class="canvas-area">
+                            <div class="workflow-nodes">
+                                <div class="node start-node">
+                                    <div class="node-icon">▶</div>
+                                    <div class="node-label">Start</div>
+                                </div>
+                                <div class="node process-node">
+                                    <div class="node-icon">⚙</div>
+                                    <div class="node-label">Data Processing</div>
+                                </div>
+                                <div class="node decision-node">
+                                    <div class="node-icon">?</div>
+                                    <div class="node-label">Validation</div>
+                                </div>
+                                <div class="node end-node">
+                                    <div class="node-icon">✓</div>
+                                    <div class="node-label">Complete</div>
+                                </div>
+                            </div>
+                            <div class="workflow-connections">
+                                <svg class="connections-svg">
+                                    <path d="M 50 100 Q 150 100 150 150" stroke="#2563eb" stroke-width="2" fill="none" marker-end="url(#arrowhead)"/>
+                                    <path d="M 150 200 Q 200 200 250 200" stroke="#2563eb" stroke-width="2" fill="none" marker-end="url(#arrowhead)"/>
+                                    <path d="M 250 250 Q 300 250 350 250" stroke="#2563eb" stroke-width="2" fill="none" marker-end="url(#arrowhead)"/>
+                                    <defs>
+                                        <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+                                            <polygon points="0 0, 10 3.5, 0 7" fill="#2563eb"/>
+                                        </marker>
+                                    </defs>
+                                </svg>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="workflow-list">
+                        <h3>Recent Workflows</h3>
+                        <div class="workflow-items">
+                            <div class="workflow-item">
+                                <div class="workflow-info">
+                                    <h4>Data Pipeline Alpha</h4>
+                                    <p>Last run: 2 hours ago</p>
+                                </div>
+                                <div class="workflow-status status-running">Running</div>
+                                <div class="workflow-actions">
+                                    <button class="btn-icon" title="View">👁</button>
+                                    <button class="btn-icon" title="Edit">✏</button>
+                                    <button class="btn-icon" title="Stop">⏹</button>
+                                </div>
+                            </div>
+                            <div class="workflow-item">
+                                <div class="workflow-info">
+                                    <h4>Email Notification System</h4>
+                                    <p>Last run: 1 day ago</p>
+                                </div>
+                                <div class="workflow-status status-completed">Completed</div>
+                                <div class="workflow-actions">
+                                    <button class="btn-icon" title="View">👁</button>
+                                    <button class="btn-icon" title="Edit">✏</button>
+                                    <button class="btn-icon" title="Run">▶</button>
+                                </div>
+                            </div>
+                            <div class="workflow-item">
+                                <div class="workflow-info">
+                                    <h4>File Processing Beta</h4>
+                                    <p>Last run: 3 days ago</p>
+                                </div>
+                                <div class="workflow-status status-failed">Failed</div>
+                                <div class="workflow-actions">
+                                    <button class="btn-icon" title="View">👁</button>
+                                    <button class="btn-icon" title="Edit">✏</button>
+                                    <button class="btn-icon" title="Retry">🔄</button>
+                                </div>
                             </div>
                         </div>
                     </div>
