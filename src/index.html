@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Flexible Orchestration Prototype</title>
+    <link rel="stylesheet" href="./styles/main.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div id="app">
+        <!-- Navigation Header -->
+        <header class="header">
+            <div class="header-content">
+                <div class="logo">
+                    <h1>Flexible Orchestration</h1>
+                </div>
+                <nav class="nav">
+                    <ul class="nav-list">
+                        <li><a href="#dashboard" class="nav-link active">Dashboard</a></li>
+                        <li><a href="#workflows" class="nav-link">Workflows</a></li>
+                        <li><a href="#monitoring" class="nav-link">Monitoring</a></li>
+                        <li><a href="#settings" class="nav-link">Settings</a></li>
+                    </ul>
+                </nav>
+            </div>
+        </header>
+
+        <!-- Main Content Area -->
+        <main class="main-content">
+            <div class="content-wrapper">
+                <!-- Dashboard Section -->
+                <section id="dashboard" class="page-section active">
+                    <div class="page-header">
+                        <h2>Dashboard</h2>
+                        <p>Overview of your orchestration system</p>
+                    </div>
+                    <div class="dashboard-grid">
+                        <div class="card">
+                            <h3>Active Workflows</h3>
+                            <div class="metric">12</div>
+                        </div>
+                        <div class="card">
+                            <h3>Completed Today</h3>
+                            <div class="metric">47</div>
+                        </div>
+                        <div class="card">
+                            <h3>System Health</h3>
+                            <div class="metric status-healthy">98%</div>
+                        </div>
+                        <div class="card">
+                            <h3>Active Users</h3>
+                            <div class="metric">23</div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Workflows Section -->
+                <section id="workflows" class="page-section">
+                    <div class="page-header">
+                        <h2>Workflow Management</h2>
+                        <p>Create and manage your orchestration workflows</p>
+                    </div>
+                    <div class="workflow-canvas">
+                        <div class="canvas-placeholder">
+                            <p>Workflow canvas will be implemented here</p>
+                            <button class="btn btn-primary">Create New Workflow</button>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Monitoring Section -->
+                <section id="monitoring" class="page-section">
+                    <div class="page-header">
+                        <h2>System Monitoring</h2>
+                        <p>Real-time monitoring and analytics</p>
+                    </div>
+                    <div class="monitoring-grid">
+                        <div class="chart-container">
+                            <h3>Performance Metrics</h3>
+                            <div class="chart-placeholder">
+                                <p>Performance chart will be implemented here</p>
+                            </div>
+                        </div>
+                        <div class="chart-container">
+                            <h3>Resource Usage</h3>
+                            <div class="chart-placeholder">
+                                <p>Resource usage chart will be implemented here</p>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Settings Section -->
+                <section id="settings" class="page-section">
+                    <div class="page-header">
+                        <h2>Settings</h2>
+                        <p>Configure your orchestration system</p>
+                    </div>
+                    <div class="settings-form">
+                        <div class="form-group">
+                            <label for="system-name">System Name</label>
+                            <input type="text" id="system-name" value="Flexible Orchestration System">
+                        </div>
+                        <div class="form-group">
+                            <label for="max-workflows">Max Concurrent Workflows</label>
+                            <input type="number" id="max-workflows" value="50">
+                        </div>
+                        <div class="form-group">
+                            <label for="notification-email">Notification Email</label>
+                            <input type="email" id="notification-email" value="admin@example.com">
+                        </div>
+                        <button class="btn btn-primary">Save Settings</button>
+                    </div>
+                </section>
+            </div>
+        </main>
+    </div>
+
+    <script type="module" src="./main.js"></script>
+</body>
+</html>
