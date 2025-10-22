@@ -174,7 +174,7 @@ body {
     border: 1px solid #e2e8f0;
     border-radius: 0.75rem;
     margin-bottom: 2rem;
-    overflow: hidden;
+    overflow: visible;
 }
 
 .canvas-header {
@@ -203,6 +203,10 @@ body {
     min-height: 300px;
     padding: 2rem;
     background: #fafbfc;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    overflow: visible;
 }
 
 .workflow-nodes {
@@ -210,6 +214,42 @@ body {
     justify-content: space-between;
     align-items: center;
     margin-bottom: 2rem;
+    width: 100%;
+    position: relative;
+    z-index: 2;
+}
+
+.workflow-connector {
+    display: flex;
+    align-items: center;
+    flex: 1;
+    justify-content: stretch;
+    position: relative;
+    height: 100px;
+    margin: 0 -10px;
+}
+
+.connector-line {
+    flex: 1;
+    height: 3px;
+    background: #2563eb;
+    position: relative;
+}
+
+.connector-line::after {
+    content: '';
+    position: absolute;
+    right: -8px;
+    top: -4px;
+    width: 0;
+    height: 0;
+    border-left: 8px solid #2563eb;
+    border-top: 5px solid transparent;
+    border-bottom: 5px solid transparent;
+}
+
+.connector-arrow {
+    display: none;
 }
 
 .node {
@@ -223,6 +263,8 @@ body {
     min-width: 120px;
     cursor: pointer;
     transition: all 0.2s ease;
+    position: relative;
+    z-index: 2;
 }
 
 .node:hover {
@@ -262,20 +304,6 @@ body {
     font-weight: 500;
     color: #374151;
     text-align: center;
-}
-
-.workflow-connections {
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    pointer-events: none;
-}
-
-.connections-svg {
-    width: 100%;
-    height: 100%;
 }
 
 /* Workflow List */
