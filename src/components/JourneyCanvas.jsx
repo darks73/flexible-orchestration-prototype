@@ -12,8 +12,8 @@ import ReactFlow, {
 import 'reactflow/dist/style.css';
 
 // Custom node components
-const StartNode = ({ data }) => (
-  <div className="journey-start-node">
+const StartNode = ({ data, selected }) => (
+  <div className={`journey-start-node ${selected ? 'selected' : ''}`}>
     <div>Start</div>
     <Handle
       type="source"
@@ -29,8 +29,8 @@ const StartNode = ({ data }) => (
   </div>
 );
 
-const EndNode = ({ data }) => (
-  <div className={`journey-end-node ${data.error ? 'error' : ''}`}>
+const EndNode = ({ data, selected }) => (
+  <div className={`journey-end-node ${data.error ? 'error' : ''} ${selected ? 'selected' : ''}`}>
     <div>{data.error ? 'Error' : 'End'}</div>
     <Handle
       type="target"
@@ -165,16 +165,35 @@ export default function JourneyCanvas() {
     if (event.key === 'Delete' || event.key === 'Backspace') {
       console.log('Delete key pressed, selected elements:', selectedElements);
       
-      // Find selected edges - edges have source and target properties
+      // Find selected nodes and edges
+      const selectedNodes = selectedElements.filter(element => element.position && element.data);
       const selectedEdges = selectedElements.filter(element => element.source && element.target);
+      
+      console.log('Selected nodes to delete:', selectedNodes);
       console.log('Selected edges to delete:', selectedEdges);
       
-      if (selectedEdges.length > 0) {
+      if (selectedNodes.length > 0 || selectedEdges.length > 0) {
+        // Remove selected nodes and any connected edges
+        const nodeIdsToRemove = selectedNodes.map(node => node.id);
+        console.log('Removing node IDs:', nodeIdsToRemove);
+        
         // Remove selected edges
         const edgeIdsToRemove = selectedEdges.map(edge => edge.id);
         console.log('Removing edge IDs:', edgeIdsToRemove);
         
-        setEdges((eds) => eds.filter(edge => !edgeIdsToRemove.includes(edge.id)));
+        // Remove edges connected to deleted nodes
+        const connectedEdgeIds = edges
+          .filter(edge => nodeIdsToRemove.includes(edge.source) || nodeIdsToRemove.includes(edge.target))
+          .map(edge => edge.id);
+        
+        console.log('Removing connected edge IDs:', connectedEdgeIds);
+        
+        // Combine all edge IDs to remove
+        const allEdgeIdsToRemove = [...new Set([...edgeIdsToRemove, ...connectedEdgeIds])];
+        
+        // Update nodes and edges
+        setNodes((nds) => nds.filter(node => !nodeIdsToRemove.includes(node.id)));
+        setEdges((eds) => eds.filter(edge => !allEdgeIdsToRemove.includes(edge.id)));
         
         // Clear selection
         setSelectedElements([]);
@@ -183,13 +202,27 @@ export default function JourneyCanvas() {
         event.preventDefault();
       }
     }
-  }, [selectedElements, setEdges]);
+  }, [selectedElements, setNodes, setEdges, edges]);
+
+  // Handle canvas click to ensure focus
+  const handleCanvasClick = useCallback(() => {
+    console.log('Canvas clicked, ensuring focus');
+    // Ensure the canvas div has focus for keyboard events
+    const canvasDiv = document.querySelector('.journey-canvas-container');
+    if (canvasDiv) {
+      canvasDiv.focus();
+    }
+  }, []);
 
   return (
     <div 
+      className="journey-canvas-container"
       style={{ width: '100%', height: '100%' }}
       onKeyDown={onKeyDown}
       tabIndex={0}
+      onClick={handleCanvasClick}
+      onFocus={() => console.log('Canvas focused')}
+      onBlur={() => console.log('Canvas blurred')}
     >
       <ReactFlow
         nodes={nodes}
@@ -201,7 +234,7 @@ export default function JourneyCanvas() {
         nodeTypes={nodeTypes}
         fitView
         nodesDraggable={true}
-        panOnDrag={true}
+        panOnDrag={[1, 2]}
         zoomOnScroll={true}
         defaultViewport={{ x: 0, y: 0, zoom: 1 }}
         connectionLineStyle={{ stroke: '#2563eb', strokeWidth: 2 }}
@@ -219,6 +252,12 @@ export default function JourneyCanvas() {
         elementsSelectable={true}
         edgesUpdatable={false}
         nodesConnectable={true}
+        nodesFocusable={true}
+        edgesFocusable={true}
+        selectOnClick={true}
+        multiSelectionKeyCode="Meta"
+        panOnScroll={false}
+        panOnScrollMode="free"
       >
         <Background />
         <Controls />
