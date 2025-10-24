@@ -46,10 +46,61 @@ const EndNode = ({ data, selected }) => (
   </div>
 );
 
+const ConditionNode = ({ data, selected }) => (
+  <div className={`journey-condition-node ${selected ? 'selected' : ''}`}>
+    <div className="condition-diamond">
+      <div className="condition-content">{data.label || 'Condition'}</div>
+    </div>
+    <Handle
+      type="target"
+      position={Position.Left}
+      id="input"
+      style={{ 
+        background: '#2563eb',
+        border: '2px solid white',
+        width: '8px',
+        height: '8px',
+        left: '-4px',
+        top: '50%',
+        transform: 'translateY(-50%)'
+      }}
+    />
+    <Handle
+      type="source"
+      position={Position.Top}
+      id="yes"
+      style={{ 
+        background: '#059669',
+        border: '2px solid white',
+        width: '8px',
+        height: '8px',
+        top: '-4px',
+        left: '50%',
+        transform: 'translateX(-50%)'
+      }}
+    />
+    <Handle
+      type="source"
+      position={Position.Bottom}
+      id="no"
+      style={{ 
+        background: '#dc2626',
+        border: '2px solid white',
+        width: '8px',
+        height: '8px',
+        bottom: '-4px',
+        left: '50%',
+        transform: 'translateX(-50%)'
+      }}
+    />
+  </div>
+);
+
 // Node types configuration
 const nodeTypes = {
   start: StartNode,
   end: EndNode,
+  condition: ConditionNode,
 };
 
 const initialNodes = [
@@ -93,10 +144,58 @@ export default function JourneyCanvas() {
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
   const [selectedElements, setSelectedElements] = useState([]);
+  const [nextNodeId, setNextNodeId] = useState(3); // Start from 3 since we have nodes 1 and 2
+  const [showNodeMenu, setShowNodeMenu] = useState(false);
 
   // Debug logging
   console.log('Current nodes:', nodes);
   console.log('Current edges:', edges);
+
+  // Function to add a new node of specified type
+  const addNode = useCallback((nodeType) => {
+    let label = 'Node';
+    if (nodeType === 'end') label = 'End';
+    if (nodeType === 'condition') label = 'Condition';
+    
+    // Calculate position to ensure node is visible
+    // Start from a reasonable position and spread nodes vertically if needed
+    const baseX = 400; // Start closer to center
+    const baseY = 200; // Start higher up
+    const spacingX = 200; // Horizontal spacing
+    const spacingY = 150; // Vertical spacing
+    
+    // Calculate grid position
+    const nodeIndex = nextNodeId - 2; // Start from 0 for new nodes
+    const row = Math.floor(nodeIndex / 3); // 3 nodes per row
+    const col = nodeIndex % 3; // Column within row
+    
+    const newNode = {
+      id: nextNodeId.toString(),
+      type: nodeType,
+      position: { 
+        x: baseX + col * spacingX, 
+        y: baseY + row * spacingY 
+      },
+      data: { label },
+      selected: false,
+    };
+    
+    setNodes((nds) => [...nds, newNode]);
+    setNextNodeId((id) => id + 1);
+    setShowNodeMenu(false); // Close the menu after adding
+    
+    console.log(`Added new ${nodeType} node:`, newNode);
+  }, [nextNodeId, setNodes]);
+
+  // Function to toggle the node menu
+  const toggleNodeMenu = useCallback(() => {
+    setShowNodeMenu(prev => !prev);
+  }, []);
+
+  // Function to close the node menu when clicking outside
+  const closeNodeMenu = useCallback(() => {
+    setShowNodeMenu(false);
+  }, []);
 
   const onConnect = useCallback(
     (params) => {
@@ -114,6 +213,17 @@ export default function JourneyCanvas() {
         }
       }
       
+      // Determine edge color and label based on source handle
+      let edgeColor = '#2563eb'; // Default blue
+      let edgeLabel = '';
+      if (params.sourceHandle === 'yes') {
+        edgeColor = '#059669'; // Green for YES
+        edgeLabel = 'YES';
+      } else if (params.sourceHandle === 'no') {
+        edgeColor = '#dc2626'; // Red for NO
+        edgeLabel = 'NO';
+      }
+      
       // Create the new edge with arrow styling
       const newEdge = {
         ...params,
@@ -122,12 +232,26 @@ export default function JourneyCanvas() {
         targetHandle: params.targetHandle || 'left',
         type: 'default',
         animated: false,
-        style: { stroke: '#2563eb', strokeWidth: 2 },
+        style: { stroke: edgeColor, strokeWidth: 2 },
         markerEnd: {
           type: 'arrowclosed',
-          color: '#2563eb',
+          color: edgeColor,
           width: 20,
           height: 20,
+        },
+        label: edgeLabel,
+        labelStyle: {
+          fill: edgeColor,
+          fontWeight: 600,
+          fontSize: 12,
+        },
+        labelBgStyle: {
+          fill: 'white',
+          fillOpacity: 0.8,
+          stroke: edgeColor,
+          strokeWidth: 1,
+          rx: 4,
+          ry: 4,
         },
       };
       
@@ -140,6 +264,15 @@ export default function JourneyCanvas() {
   const onSelectionChange = useCallback(({ nodes: selectedNodes, edges: selectedEdges }) => {
     console.log('Selection changed:', { selectedNodes, selectedEdges });
     setSelectedElements([...selectedNodes, ...selectedEdges]);
+    
+    // Update node selection state
+    setNodes((nds) => nds.map(node => {
+      const isSelected = selectedNodes.some(selNode => selNode.id === node.id);
+      return {
+        ...node,
+        selected: isSelected,
+      };
+    }));
     
     // Update edge colors based on selection
     setEdges((eds) => eds.map(edge => {
@@ -158,7 +291,7 @@ export default function JourneyCanvas() {
         },
       };
     }));
-  }, [setEdges]);
+  }, [setNodes, setEdges]);
 
   // Handle keyboard events for deletion
   const onKeyDown = useCallback((event) => {
@@ -173,8 +306,14 @@ export default function JourneyCanvas() {
       console.log('Selected edges to delete:', selectedEdges);
       
       if (selectedNodes.length > 0 || selectedEdges.length > 0) {
-        // Remove selected nodes and any connected edges
-        const nodeIdsToRemove = selectedNodes.map(node => node.id);
+        // Filter out Start nodes (id: '1') - they cannot be deleted
+        const deletableNodes = selectedNodes.filter(node => node.id !== '1');
+        const nodeIdsToRemove = deletableNodes.map(node => node.id);
+        
+        if (selectedNodes.some(node => node.id === '1')) {
+          console.log('Start node cannot be deleted');
+        }
+        
         console.log('Removing node IDs:', nodeIdsToRemove);
         
         // Remove selected edges
@@ -191,15 +330,18 @@ export default function JourneyCanvas() {
         // Combine all edge IDs to remove
         const allEdgeIdsToRemove = [...new Set([...edgeIdsToRemove, ...connectedEdgeIds])];
         
-        // Update nodes and edges
-        setNodes((nds) => nds.filter(node => !nodeIdsToRemove.includes(node.id)));
-        setEdges((eds) => eds.filter(edge => !allEdgeIdsToRemove.includes(edge.id)));
-        
-        // Clear selection
-        setSelectedElements([]);
-        
-        // Prevent default behavior
-        event.preventDefault();
+        // Only proceed if there are nodes to delete or edges to delete
+        if (nodeIdsToRemove.length > 0 || allEdgeIdsToRemove.length > 0) {
+          // Update nodes and edges
+          setNodes((nds) => nds.filter(node => !nodeIdsToRemove.includes(node.id)));
+          setEdges((eds) => eds.filter(edge => !allEdgeIdsToRemove.includes(edge.id)));
+          
+          // Clear selection
+          setSelectedElements([]);
+          
+          // Prevent default behavior
+          event.preventDefault();
+        }
       }
     }
   }, [selectedElements, setNodes, setEdges, edges]);
@@ -263,6 +405,37 @@ export default function JourneyCanvas() {
         <Controls />
         <MiniMap />
       </ReactFlow>
+      
+      {/* Add Node Button */}
+      <div className="add-node-container">
+        <button
+          className="add-node-button"
+          onClick={toggleNodeMenu}
+          title="Add Node"
+        >
+          +
+        </button>
+        
+        {/* Node Selection Menu */}
+        {showNodeMenu && (
+          <div className="node-menu">
+            <div className="node-menu-item" onClick={() => addNode('end')}>
+              <div className="node-menu-icon end-icon">End</div>
+              <span>End Node</span>
+            </div>
+            <div className="node-menu-item" onClick={() => addNode('condition')}>
+              <div className="node-menu-icon condition-icon">?</div>
+              <span>Condition Node</span>
+            </div>
+            {/* Future node types can be added here */}
+          </div>
+        )}
+      </div>
+      
+      {/* Overlay to close menu when clicking outside */}
+      {showNodeMenu && (
+        <div className="menu-overlay" onClick={closeNodeMenu} />
+      )}
     </div>
   );
 }
