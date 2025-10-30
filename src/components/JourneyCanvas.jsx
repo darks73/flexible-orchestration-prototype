@@ -13,6 +13,9 @@ import ReactFlow, {
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 import { layoutGraph } from '../utils/layout.js';
+import FormPreview from './FormPreview.jsx';
+import FormEditorFields from './FormEditorFields.jsx';
+import { loadFormSchema, saveFormSchema, createEmptySchema } from '../utils/formStorage.js';
 
 // Custom node components
 const StartNode = ({ data, selected }) => (
@@ -225,8 +228,33 @@ function InnerCanvas() {
   const [activeFormNodeId, setActiveFormNodeId] = useState(null);
   const reactFlowInstance = useReactFlow();
   const canvasRef = useRef(null);
+  const [activeTab, setActiveTab] = useState('details');
+  const [formSchema, setFormSchema] = useState(null);
+  const [selectedElementIndex, setSelectedElementIndex] = useState(null);
   
   const selectedFrontendForm = nodes.find(n => n.id === activeFormNodeId);
+
+  // hydrate schema when selection changes
+  React.useEffect(() => {
+    if (!selectedFrontendForm) { setFormSchema(null); return; }
+    const fromNode = selectedFrontendForm.data?.formSchema;
+    const fromStorage = loadFormSchema(selectedFrontendForm.id);
+    const schema = fromNode || fromStorage || createEmptySchema();
+    setFormSchema(schema);
+    setActiveTab('details');
+    setSelectedElementIndex(null);
+  }, [selectedFrontendForm?.id]);
+
+  // persist schema to node and storage (basic debounce)
+  React.useEffect(() => {
+    if (!selectedFrontendForm || !formSchema) return;
+    const id = selectedFrontendForm.id;
+    const timeout = setTimeout(() => {
+      saveFormSchema(id, formSchema);
+      setNodes(nds => nds.map(n => n.id === id ? { ...n, data: { ...n.data, formSchema } } : n));
+    }, 150);
+    return () => clearTimeout(timeout);
+  }, [formSchema, selectedFrontendForm?.id, setNodes]);
 
   const updateSelectedFrontendFormLabel = useCallback((newLabel) => {
     setNodes((nds) => nds.map(node => {
@@ -262,6 +290,58 @@ function InnerCanvas() {
     setSelectedElements([]);
     setActiveFormNodeId(null);
   }, [activeFormNodeId, setNodes, setEdges]);
+
+  // Editor operations
+  const genGuid = () => 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
+    const r = (Math.random() * 16) | 0;
+    const v = c === 'x' ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
+
+  const addElement = (type) => {
+    if (!formSchema) return;
+    const id = genGuid();
+    const base = { id, type, label: type === 'button' ? 'Submit' : id, validations: {} };
+    const el = type === 'checkbox' ? { ...base, value: false } : base;
+    setFormSchema(s => ({ ...s, elements: [...(s.elements||[]), el] }));
+    setActiveTab('form');
+  };
+
+  const updateElement = (idx, next) => {
+    setFormSchema(s => {
+      const arr = [...s.elements];
+      arr[idx] = next;
+      return { ...s, elements: arr };
+    });
+  };
+
+  const onDragStart = (e, idx) => { e.dataTransfer.setData('text/plain', String(idx)); };
+  const onDragOver = (e) => { e.preventDefault(); };
+  const onDrop = (e, targetIdx) => {
+    e.preventDefault();
+    const from = Number(e.dataTransfer.getData('text/plain'));
+    if (Number.isNaN(from) || from === targetIdx) return;
+    setFormSchema(s => {
+      const arr = [...s.elements];
+      const [item] = arr.splice(from, 1);
+      arr.splice(targetIdx, 0, item);
+      return { ...s, elements: arr };
+    });
+  };
+
+  const deleteElement = (idx) => {
+    setFormSchema(s => {
+      const arr = [...(s.elements||[])];
+      arr.splice(idx, 1);
+      return { ...s, elements: arr };
+    });
+    setSelectedElementIndex((cur) => {
+      if (cur == null) return cur;
+      if (idx === cur) return null;
+      if (idx < cur) return cur - 1;
+      return cur;
+    });
+  };
 
   // Debug logging
   console.log('Current nodes:', nodes);
@@ -608,26 +688,83 @@ function InnerCanvas() {
           <div className="sidesheet-header">
             <div className="sidesheet-title">Frontend - Form</div>
           </div>
+          <div className="sidesheet-tabs">
+            <button className={`tab-btn ${activeTab==='details'?'active':''}`} onClick={()=>setActiveTab('details')}>Details</button>
+            <button className={`tab-btn ${activeTab==='form'?'active':''}`} onClick={()=>setActiveTab('form')}>Form</button>
+          </div>
           <div className="sidesheet-body">
-            <label className="input-label" htmlFor="node-name">Name</label>
-            <input
-              id="node-name"
-              className="text-input"
-              type="text"
-              value={selectedFrontendForm.data?.label || ''}
-              onChange={(e) => updateSelectedFrontendFormLabel(e.target.value)}
-              placeholder="Frontend - Form"
-            />
-            <div style={{ height: '12px' }} />
-            <label className="input-label" htmlFor="node-desc">Description</label>
-            <textarea
-              id="node-desc"
-              className="text-input"
-              rows={3}
-              value={selectedFrontendForm.data?.description || ''}
-              onChange={(e) => updateSelectedFrontendFormDescription(e.target.value)}
-              placeholder="Optional description"
-            />
+            {activeTab === 'details' && (
+              <div>
+                <label className="input-label" htmlFor="node-name">Name</label>
+                <input
+                  id="node-name"
+                  className="text-input"
+                  type="text"
+                  value={selectedFrontendForm.data?.label || ''}
+                  onChange={(e) => updateSelectedFrontendFormLabel(e.target.value)}
+                  placeholder="Frontend - Form"
+                />
+                <div style={{ height: '12px' }} />
+                <label className="input-label" htmlFor="node-desc">Description</label>
+                <textarea
+                  id="node-desc"
+                  className="text-input"
+                  rows={3}
+                  value={selectedFrontendForm.data?.description || ''}
+                  onChange={(e) => updateSelectedFrontendFormDescription(e.target.value)}
+                  placeholder="Optional description"
+                />
+              </div>
+            )}
+            {activeTab === 'form' && (
+              <div className="form-editor">
+                <div className="form-elements">
+                  <div className="section-title">Elements</div>
+                  <div className="element-actions">
+                    <button className="btn-secondary" onClick={()=>addElement('input')}>+ Input</button>
+                    <button className="btn-secondary" onClick={()=>addElement('password')}>+ Password</button>
+                    <button className="btn-secondary" onClick={()=>addElement('checkbox')}>+ Checkbox</button>
+                    <button className="btn-secondary" onClick={()=>addElement('label')}>+ Label</button>
+                    <button className="btn-secondary" onClick={()=>addElement('button')}>+ Button</button>
+                  </div>
+                  <div className="element-list" onDragOver={onDragOver}>
+                    {(formSchema?.elements||[]).map((el, idx) => (
+                      <div
+                        key={el.id}
+                        className={`element-item ${selectedElementIndex===idx?'selected':''}`}
+                        draggable
+                        onDragStart={(e)=>onDragStart(e, idx)}
+                        onDrop={(e)=>onDrop(e, idx)}
+                        onClick={()=>setSelectedElementIndex(idx)}
+                      >
+                        <span className="element-type">{el.type}</span>
+                        <span className="element-label">{el.label || el.i18nKey || el.id}</span>
+                        <button
+                          className="btn-danger"
+                          style={{ marginLeft: 'auto', padding: '2px 6px' }}
+                          title="Remove"
+                          onClick={(e)=>{ e.stopPropagation(); deleteElement(idx); }}
+                        >
+                          🗑
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                <div className="form-properties">
+                  <div className="section-title">Properties</div>
+                  <FormEditorFields
+                    element={formSchema?.elements?.[selectedElementIndex]}
+                    onChange={(next)=>updateElement(selectedElementIndex, next)}
+                  />
+                  <div className="section-title" style={{marginTop:'12px'}}>Preview</div>
+                  <FormPreview
+                    schema={formSchema}
+                    onSubmit={(values)=>console.log('Submit (simulate success):', values)}
+                  />
+                </div>
+              </div>
+            )}
           </div>
           <div className="sidesheet-footer">
             <div className="footer-left">
