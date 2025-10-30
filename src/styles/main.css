@@ -179,6 +179,97 @@ body {
     background: rgba(255, 0, 0, 0.1) !important;
 }
 
+/* Frontend Form Node (rounded square) */
+.frontend-form-node {
+    width: 160px;
+    min-height: 80px;
+    background: #eef2ff;
+    border: 2px solid #c7d2fe;
+    border-radius: 12px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 12px;
+    color: #3730a3;
+    text-align: center;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
+    position: relative;
+}
+
+.frontend-form-node .frontend-form-title {
+    font-weight: 700;
+    font-size: 12px;
+    margin-bottom: 4px;
+}
+
+.frontend-form-node .frontend-form-subtitle {
+    font-weight: 600;
+    font-size: 11px;
+    color: #4f46e5;
+}
+
+.frontend-form-node.selected {
+    outline: 2px solid #dc2626;
+    outline-offset: 2px;
+    transform: scale(1.05);
+    box-shadow: 0 0 0 4px rgba(220, 38, 38, 0.12);
+}
+
+/* Port badges for Frontend - Form */
+.frontend-form-node .port-badge {
+    position: absolute;
+    right: -2px;
+    transform: translateY(-50%);
+    background: #ffffff;
+    padding: 0px 5px;
+    font-size: 8px;
+    font-weight: 700;
+    border-radius: 8px;
+    line-height: 1;
+    white-space: nowrap;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+    border: 1px solid #e5e7eb;
+    pointer-events: none; /* allow dragging via enlarged invisible handle underneath */
+    z-index: 2;
+}
+
+.frontend-form-node .port-badge.success {
+    color: #065f46;
+    border-color: #a7f3d0;
+    background: #ecfdf5;
+}
+
+.frontend-form-node .port-badge.error {
+    color: #991b1b;
+    border-color: #fecaca;
+    background: #fef2f2;
+}
+
+/* Visible dots next to badges */
+.frontend-form-node .port-dot {
+    position: absolute;
+    right: 56px; /* aligns with the left edge of the enlarged handle */
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #2563eb;
+    border: 2px solid #ffffff;
+    transform: translateY(-50%);
+    z-index: 3;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+}
+
+/* Menu icon for Frontend - Form */
+.node-menu-icon.frontend-form-icon {
+    background: #eef2ff;
+    color: #3730a3;
+    border: 2px solid #c7d2fe;
+    border-radius: 8px;
+    width: 24px;
+    height: 24px;
+}
+
 /* Canvas Background */
 .react-flow__background {
     background-color: #f8fafc;
@@ -341,6 +432,12 @@ body {
     border: 2px solid #bbf7d0;
 }
 
+.node-menu-icon.end-error-icon {
+    background: #fee2e2;
+    color: #991b1b;
+    border: 2px solid #fecaca;
+}
+
 .node-menu-icon.condition-icon {
     background: #fef3c7;
     color: #92400e;
@@ -401,3 +498,86 @@ body {
     padding-top: 64px;
     height: calc(100vh - 64px);
 }
+
+/* Sidesheet */
+.sidesheet {
+    position: fixed;
+    top: 64px; /* account for header */
+    right: 0;
+    width: 25%;
+    height: calc(100vh - 64px);
+    background: #ffffff;
+    border-left: 1px solid #e2e8f0;
+    box-shadow: -6px 0 16px rgba(0,0,0,0.08);
+    display: flex;
+    flex-direction: column;
+    z-index: 1100;
+}
+
+.sidesheet-header {
+    padding: 16px 20px;
+    border-bottom: 1px solid #e5e7eb;
+}
+
+.sidesheet-title {
+    font-weight: 700;
+    color: #111827;
+}
+
+.sidesheet-body {
+    padding: 16px 20px;
+    flex: 1;
+    overflow-y: auto;
+}
+
+.sidesheet-footer {
+    padding: 12px 20px;
+    border-top: 1px solid #e5e7eb;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.sidesheet-footer .footer-left,
+.sidesheet-footer .footer-right { display: flex; gap: 8px; }
+
+.input-label {
+    display: block;
+    font-size: 12px;
+    color: #6b7280;
+    margin-bottom: 6px;
+}
+
+.text-input {
+    width: 100%;
+    padding: 8px 10px;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    outline: none;
+}
+
+.text-input:focus {
+    border-color: #2563eb;
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+}
+
+.btn-secondary {
+    background: #f3f4f6;
+    color: #111827;
+    border: 1px solid #e5e7eb;
+    padding: 8px 12px;
+    border-radius: 8px;
+    cursor: pointer;
+}
+
+.btn-danger {
+    background: #ef4444;
+    color: white;
+    border: none;
+    padding: 8px 12px;
+    border-radius: 8px;
+    cursor: pointer;
+}
+
+.btn-danger:hover { background: #dc2626; }
+.btn-secondary:hover { background: #e5e7eb; }

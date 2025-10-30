@@ -38,6 +38,7 @@
     "@reactflow/minimap": "^11.7.14",
     "chart.js": "^4.4.0",
     "dragula": "^3.7.3",
+    "elkjs": "^0.9.3",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "reactflow": "^11.11.4"

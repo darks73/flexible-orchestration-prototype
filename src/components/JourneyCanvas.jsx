@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useRef, useState } from 'react';
 import ReactFlow, {
   Background,
   Controls,
@@ -8,8 +8,11 @@ import ReactFlow, {
   addEdge,
   Handle,
   Position,
+  useReactFlow,
+  ReactFlowProvider,
 } from 'reactflow';
 import 'reactflow/dist/style.css';
+import { layoutGraph } from '../utils/layout.js';
 
 // Custom node components
 const StartNode = ({ data, selected }) => (
@@ -29,9 +32,80 @@ const StartNode = ({ data, selected }) => (
   </div>
 );
 
-const EndNode = ({ data, selected }) => (
-  <div className={`journey-end-node ${data.error ? 'error' : ''} ${selected ? 'selected' : ''}`}>
-    <div>{data.error ? 'Error' : 'End'}</div>
+const FrontendFormNode = ({ data, selected }) => (
+  <div className={`frontend-form-node ${selected ? 'selected' : ''}`}>
+    <div className="frontend-form-title">{data.label || 'Frontend - Form'}</div>
+    <div className="frontend-form-subtitle">Form</div>
+    {/* Input */}
+    <Handle
+      type="target"
+      position={Position.Left}
+      id="input"
+      style={{ 
+        background: '#2563eb',
+        border: '2px solid white',
+        width: '8px',
+        height: '8px',
+        left: '-4px',
+        top: '50%',
+        transform: 'translateY(-50%)'
+      }}
+    />
+    {/* Output: success */}
+    <Handle
+      type="source"
+      position={Position.Right}
+      id="success"
+      style={{ 
+        background: '#2563eb',
+        border: '2px solid white',
+        width: '8px',
+        height: '8px',
+        right: '-4px',
+        top: '35%',
+        transform: 'translateY(-50%)'
+      }}
+    />
+    {/* small blue dot handle only */}
+    {/* Output: error */}
+    <Handle
+      type="source"
+      position={Position.Right}
+      id="error"
+      style={{ 
+        background: '#2563eb',
+        border: '2px solid white',
+        width: '8px',
+        height: '8px',
+        right: '-4px',
+        top: '65%',
+        transform: 'translateY(-50%)'
+      }}
+    />
+    {/* small blue dot handle only */}
+  </div>
+);
+
+const SuccessEndNode = ({ data, selected }) => (
+  <div className={`journey-end-node ${selected ? 'selected' : ''}`}>
+    <div>Success</div>
+    <Handle
+      type="target"
+      position={Position.Left}
+      id="left"
+      style={{ 
+        background: '#2563eb',
+        border: '2px solid white',
+        width: '8px',
+        height: '8px'
+      }}
+    />
+  </div>
+);
+
+const ErrorEndNode = ({ data, selected }) => (
+  <div className={`journey-end-node error ${selected ? 'selected' : ''}`}>
+    <div>Error</div>
     <Handle
       type="target"
       position={Position.Left}
@@ -99,8 +173,10 @@ const ConditionNode = ({ data, selected }) => (
 // Node types configuration
 const nodeTypes = {
   start: StartNode,
-  end: EndNode,
+  successEnd: SuccessEndNode,
+  errorEnd: ErrorEndNode,
   condition: ConditionNode,
+  frontendForm: FrontendFormNode,
 };
 
 const initialNodes = [
@@ -112,9 +188,9 @@ const initialNodes = [
   },
   {
     id: '2',
-    type: 'end',
+    type: 'successEnd',
     position: { x: 500, y: 250 },
-    data: { label: 'End' },
+    data: { label: 'Success' },
   },
 ];
 
@@ -140,12 +216,52 @@ const initialEdges = [
   },
 ];
 
-export default function JourneyCanvas() {
+function InnerCanvas() {
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
   const [selectedElements, setSelectedElements] = useState([]);
   const [nextNodeId, setNextNodeId] = useState(3); // Start from 3 since we have nodes 1 and 2
   const [showNodeMenu, setShowNodeMenu] = useState(false);
+  const [activeFormNodeId, setActiveFormNodeId] = useState(null);
+  const reactFlowInstance = useReactFlow();
+  const canvasRef = useRef(null);
+  
+  const selectedFrontendForm = nodes.find(n => n.id === activeFormNodeId);
+
+  const updateSelectedFrontendFormLabel = useCallback((newLabel) => {
+    setNodes((nds) => nds.map(node => {
+      if (node.id === activeFormNodeId) {
+        return { ...node, data: { ...node.data, label: newLabel } };
+      }
+      return node;
+    }));
+  }, [activeFormNodeId, setNodes]);
+
+  const updateSelectedFrontendFormDescription = useCallback((newDesc) => {
+    setNodes((nds) => nds.map(node => {
+      if (node.id === activeFormNodeId) {
+        return { ...node, data: { ...node.data, description: newDesc } };
+      }
+      return node;
+    }));
+  }, [activeFormNodeId, setNodes]);
+
+  const closeSidesheet = useCallback(() => {
+    // Deselect any selected nodes
+    setNodes((nds) => nds.map(node => ({ ...node, selected: false })));
+    setSelectedElements([]);
+    setActiveFormNodeId(null);
+  }, [setNodes]);
+
+  const deleteSelectedFrontendForm = useCallback(() => {
+    const nodeId = activeFormNodeId;
+    if (!nodeId) return;
+    // Remove node and connected edges
+    setNodes((nds) => nds.filter(n => n.id !== nodeId));
+    setEdges((eds) => eds.filter(e => e.source !== nodeId && e.target !== nodeId));
+    setSelectedElements([]);
+    setActiveFormNodeId(null);
+  }, [activeFormNodeId, setNodes, setEdges]);
 
   // Debug logging
   console.log('Current nodes:', nodes);
@@ -154,27 +270,29 @@ export default function JourneyCanvas() {
   // Function to add a new node of specified type
   const addNode = useCallback((nodeType) => {
     let label = 'Node';
-    if (nodeType === 'end') label = 'End';
+    if (nodeType === 'successEnd') label = 'Success';
+    if (nodeType === 'errorEnd') label = 'Error';
     if (nodeType === 'condition') label = 'Condition';
+    if (nodeType === 'frontendForm') label = 'Frontend - Form';
     
-    // Calculate position to ensure node is visible
-    // Start from a reasonable position and spread nodes vertically if needed
-    const baseX = 400; // Start closer to center
-    const baseY = 200; // Start higher up
-    const spacingX = 200; // Horizontal spacing
-    const spacingY = 150; // Vertical spacing
-    
-    // Calculate grid position
-    const nodeIndex = nextNodeId - 2; // Start from 0 for new nodes
-    const row = Math.floor(nodeIndex / 3); // 3 nodes per row
-    const col = nodeIndex % 3; // Column within row
-    
+    // Calculate position centered in the currently visible viewport
+    const container = canvasRef.current || document.querySelector('.journey-canvas-container');
+    const rect = container?.getBoundingClientRect();
+    const centerScreen = rect
+      ? { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 }
+      : { x: window.innerWidth / 2, y: window.innerHeight / 2 };
+    const centerFlow = reactFlowInstance.screenToFlowPosition(centerScreen);
+
+    // Slight offset to avoid perfect overlap when adding multiple quickly
+    const nodeIndex = nextNodeId - 2;
+    const offset = { x: (nodeIndex % 3) * 30, y: Math.floor(nodeIndex / 3) * 30 };
+
     const newNode = {
       id: nextNodeId.toString(),
       type: nodeType,
       position: { 
-        x: baseX + col * spacingX, 
-        y: baseY + row * spacingY 
+        x: centerFlow.x + offset.x, 
+        y: centerFlow.y + offset.y 
       },
       data: { label },
       selected: false,
@@ -222,6 +340,12 @@ export default function JourneyCanvas() {
       } else if (params.sourceHandle === 'no') {
         edgeColor = '#dc2626'; // Red for NO
         edgeLabel = 'NO';
+      } else if (params.sourceHandle === 'success') {
+        edgeColor = '#059669';
+        edgeLabel = 'success';
+      } else if (params.sourceHandle === 'error') {
+        edgeColor = '#dc2626';
+        edgeLabel = 'error';
       }
       
       // Create the new edge with arrow styling
@@ -274,6 +398,10 @@ export default function JourneyCanvas() {
       };
     }));
     
+    // Track active frontend form node id for sidesheet
+    const activeForm = selectedNodes.find(n => n.type === 'frontendForm');
+    setActiveFormNodeId(activeForm ? activeForm.id : null);
+    
     // Update edge colors based on selection
     setEdges((eds) => eds.map(edge => {
       const isSelected = selectedEdges.some(selEdge => selEdge.id === edge.id);
@@ -295,6 +423,12 @@ export default function JourneyCanvas() {
 
   // Handle keyboard events for deletion
   const onKeyDown = useCallback((event) => {
+    // Ignore Delete/Backspace when focus is within the sidesheet or an input/textarea
+    const isTextInput = ['INPUT', 'TEXTAREA'].includes(event.target.tagName) || event.target.isContentEditable;
+    const isInSideSheet = typeof event.target.closest === 'function' && !!event.target.closest('.sidesheet');
+    if ((event.key === 'Delete' || event.key === 'Backspace') && (isTextInput || isInSideSheet)) {
+      return; // let the input handle the key normally
+    }
     if (event.key === 'Delete' || event.key === 'Backspace') {
       console.log('Delete key pressed, selected elements:', selectedElements);
       
@@ -359,6 +493,7 @@ export default function JourneyCanvas() {
   return (
     <div 
       className="journey-canvas-container"
+      ref={canvasRef}
       style={{ width: '100%', height: '100%' }}
       onKeyDown={onKeyDown}
       tabIndex={0}
@@ -376,7 +511,7 @@ export default function JourneyCanvas() {
         nodeTypes={nodeTypes}
         fitView
         nodesDraggable={true}
-        panOnDrag={[1, 2]}
+        panOnDrag={true}
         zoomOnScroll={true}
         defaultViewport={{ x: 0, y: 0, zoom: 1 }}
         connectionLineStyle={{ stroke: '#2563eb', strokeWidth: 2 }}
@@ -398,12 +533,12 @@ export default function JourneyCanvas() {
         edgesFocusable={true}
         selectOnClick={true}
         multiSelectionKeyCode="Meta"
-        panOnScroll={false}
+        panOnScroll={true}
         panOnScrollMode="free"
       >
         <Background />
         <Controls />
-        <MiniMap />
+        <MiniMap pannable={true} zoomable={true} />
       </ReactFlow>
       
       {/* Add Node Button */}
@@ -415,13 +550,38 @@ export default function JourneyCanvas() {
         >
           +
         </button>
+        <div style={{ marginTop: '10px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+          <button
+            className="add-node-button"
+            title="Auto-arrange"
+            onClick={async () => {
+              try {
+                const laidOut = await layoutGraph(reactFlowInstance.getNodes(), reactFlowInstance.getEdges(), { direction: 'RIGHT' });
+                setNodes(laidOut);
+                setTimeout(() => reactFlowInstance.fitView({ padding: 0.2 }), 0);
+              } catch (e) {
+                console.error('Auto layout failed', e);
+              }
+            }}
+          >
+            ↻
+          </button>
+        </div>
         
         {/* Node Selection Menu */}
         {showNodeMenu && (
           <div className="node-menu">
-            <div className="node-menu-item" onClick={() => addNode('end')}>
-              <div className="node-menu-icon end-icon">End</div>
-              <span>End Node</span>
+            <div className="node-menu-item" onClick={() => addNode('successEnd')}>
+              <div className="node-menu-icon end-icon">✔</div>
+              <span>Success End</span>
+            </div>
+            <div className="node-menu-item" onClick={() => addNode('errorEnd')}>
+              <div className="node-menu-icon end-error-icon">✖</div>
+              <span>Error End</span>
+            </div>
+            <div className="node-menu-item" onClick={() => addNode('frontendForm')}>
+              <div className="node-menu-icon frontend-form-icon">UI</div>
+              <span>Frontend - Form</span>
             </div>
             <div className="node-menu-item" onClick={() => addNode('condition')}>
               <div className="node-menu-icon condition-icon">?</div>
@@ -436,6 +596,57 @@ export default function JourneyCanvas() {
       {showNodeMenu && (
         <div className="menu-overlay" onClick={closeNodeMenu} />
       )}
+
+      {/* Sidesheet for Frontend - Form */}
+      {selectedFrontendForm && (
+        <div 
+          className="sidesheet"
+          onMouseDown={(e) => e.stopPropagation()}
+          onClick={(e) => e.stopPropagation()}
+          onPointerDown={(e) => e.stopPropagation()}
+        >
+          <div className="sidesheet-header">
+            <div className="sidesheet-title">Frontend - Form</div>
+          </div>
+          <div className="sidesheet-body">
+            <label className="input-label" htmlFor="node-name">Name</label>
+            <input
+              id="node-name"
+              className="text-input"
+              type="text"
+              value={selectedFrontendForm.data?.label || ''}
+              onChange={(e) => updateSelectedFrontendFormLabel(e.target.value)}
+              placeholder="Frontend - Form"
+            />
+            <div style={{ height: '12px' }} />
+            <label className="input-label" htmlFor="node-desc">Description</label>
+            <textarea
+              id="node-desc"
+              className="text-input"
+              rows={3}
+              value={selectedFrontendForm.data?.description || ''}
+              onChange={(e) => updateSelectedFrontendFormDescription(e.target.value)}
+              placeholder="Optional description"
+            />
+          </div>
+          <div className="sidesheet-footer">
+            <div className="footer-left">
+              <button className="btn-danger" onClick={deleteSelectedFrontendForm}>Delete</button>
+            </div>
+            <div className="footer-right">
+              <button className="btn-secondary" onClick={closeSidesheet}>Close</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
+  );
+}
+
+export default function JourneyCanvas() {
+  return (
+    <ReactFlowProvider>
+      <InnerCanvas />
+    </ReactFlowProvider>
   );
 }
