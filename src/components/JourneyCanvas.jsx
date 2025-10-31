@@ -188,6 +188,58 @@ const ConditionNode = ({ data, selected }) => (
   </div>
 );
 
+const HttpBackendNode = ({ data, selected }) => (
+  <div className={`frontend-form-node ${selected ? 'selected' : ''}`}>
+    <div className="frontend-form-title">{data.label || 'HTTP Request'}</div>
+    <div className="frontend-form-subtitle">{data.nodeType === 'backend' ? 'Backend' : 'Frontend'}</div>
+    {/* Input */}
+    <Handle
+      type="target"
+      position={Position.Left}
+      id="input"
+      style={{ 
+        background: '#041295', // var(--color-primary-blue)
+        border: '2px solid white',
+        width: '8px',
+        height: '8px',
+        left: '-4px',
+        top: '50%',
+        transform: 'translateY(-50%)'
+      }}
+    />
+    {/* Output: success */}
+    <Handle
+      type="source"
+      position={Position.Right}
+      id="success"
+      style={{ 
+        background: '#00BBDD', // var(--color-success-green)
+        border: '2px solid white',
+        width: '8px',
+        height: '8px',
+        right: '-4px',
+        top: '35%',
+        transform: 'translateY(-50%)'
+      }}
+    />
+    {/* Output: error */}
+    <Handle
+      type="source"
+      position={Position.Right}
+      id="error"
+      style={{ 
+        background: '#E01E00', // var(--color-error-red)
+        border: '2px solid white',
+        width: '8px',
+        height: '8px',
+        right: '-4px',
+        top: '65%',
+        transform: 'translateY(-50%)'
+      }}
+    />
+  </div>
+);
+
 // Node types configuration
 const nodeTypes = {
   start: StartNode,
@@ -195,6 +247,7 @@ const nodeTypes = {
   errorEnd: ErrorEndNode,
   condition: ConditionNode,
   frontendForm: FrontendFormNode,
+  httpRequest: HttpBackendNode,
 };
 
 const loadJourney = () => {
@@ -235,6 +288,7 @@ const loadJourney = () => {
             width: 20,
             height: 20,
           },
+          interactionWidth: 30, // Extended grab area including arrowhead
           selected: false,
         },
       ],
@@ -275,6 +329,7 @@ const loadJourney = () => {
             width: 20,
             height: 20,
           },
+          interactionWidth: 30, // Extended grab area including arrowhead
           selected: false,
         },
       ],
@@ -303,6 +358,7 @@ const normalizeEdge = (edge) => ({
   label: edge.label,
   labelStyle: edge.labelStyle,
   labelBgStyle: edge.labelBgStyle,
+  interactionWidth: edge.interactionWidth || 30, // Ensure all edges have extended grab area
   // don't save computed fields like selected, etc.
 });
 
@@ -320,7 +376,11 @@ const saveJourney = (nodes, edges, nextNodeId) => {
 
 const initialJourney = loadJourney();
 const initialNodes = initialJourney.nodes;
-const initialEdges = initialJourney.edges;
+// Ensure all initial edges have interactionWidth for extended grab area
+const initialEdges = initialJourney.edges.map(edge => ({
+  ...edge,
+  interactionWidth: edge.interactionWidth || 30,
+}));
 const initialNextNodeId = initialJourney.nextNodeId;
 
 function InnerCanvas() {
@@ -330,13 +390,16 @@ function InnerCanvas() {
   const [nextNodeId, setNextNodeId] = useState(initialNextNodeId);
   const [showNodeMenu, setShowNodeMenu] = useState(false);
   const [activeFormNodeId, setActiveFormNodeId] = useState(null);
+  const [activeHttpNodeId, setActiveHttpNodeId] = useState(null);
   const reactFlowInstance = useReactFlow();
   const canvasRef = useRef(null);
   const [activeTab, setActiveTab] = useState('details');
+  const [activeHttpTab, setActiveHttpTab] = useState('details');
   const [formSchema, setFormSchema] = useState(null);
   const [selectedElementIndex, setSelectedElementIndex] = useState(null);
   
   const selectedFrontendForm = nodes.find(n => n.id === activeFormNodeId);
+  const selectedHttpNode = nodes.find(n => n.id === activeHttpNodeId);
 
   // hydrate schema when selection changes
   React.useEffect(() => {
@@ -351,6 +414,14 @@ function InnerCanvas() {
     setSelectedElementIndex(null);
   }, [selectedFrontendForm?.id]);
 
+  // hydrate HTTP node tab when selection changes
+  React.useEffect(() => {
+    if (!selectedHttpNode) return;
+    // restore active tab from localStorage
+    const savedTab = localStorage.getItem(`sidesheetTab:${selectedHttpNode.id}`);
+    setActiveHttpTab(savedTab === 'request' ? 'request' : savedTab === 'context' ? 'context' : 'details');
+  }, [selectedHttpNode?.id]);
+
   // persist schema to node and storage (basic debounce)
   React.useEffect(() => {
     if (!selectedFrontendForm || !formSchema) return;
@@ -362,7 +433,7 @@ function InnerCanvas() {
     return () => clearTimeout(timeout);
   }, [formSchema, selectedFrontendForm?.id, setNodes]);
 
-  // Update marker colors for selected edges to use primary blue highlight
+  // Update marker colors and stroke for selected edges to use primary blue highlight
   // Track selected edge IDs to detect selection changes
   const selectedEdgeIdsRef = React.useRef(new Set());
   React.useEffect(() => {
@@ -375,53 +446,77 @@ function InnerCanvas() {
       [...currentSelectedIds].some(id => !prevSelectedIds.has(id)) ||
       [...prevSelectedIds].some(id => !currentSelectedIds.has(id));
     
-    if (!selectionChanged && edges.length === 0) return;
+    if (!selectionChanged && edges.length > 0) return;
     
     selectedEdgeIdsRef.current = currentSelectedIds;
     
     setEdges((eds) => {
+      let hasChanges = false;
       const updated = eds.map(edge => {
-        if (edge.selected && edge.markerEnd) {
+        // Determine original color based on source handle
+        let originalColor = '#041295'; // Default primary blue
+        if (edge.sourceHandle === 'success' || edge.sourceHandle === 'yes') {
+          originalColor = '#00BBDD'; // Success green
+        } else if (edge.sourceHandle === 'error' || edge.sourceHandle === 'no') {
+          originalColor = '#F5D4D4'; // Toned down error color
+        }
+        
+        if (edge.selected) {
           // Selected edges use primary blue for both edge path and arrow head
           const selectedMarkerColor = '#041295'; // Primary blue for selected state
-          if (edge.markerEnd?.color !== selectedMarkerColor) {
+          const selectedStrokeWidth = 4; // Thicker stroke for selected
+          
+          // Check if marker color needs update
+          const markerNeedsUpdate = edge.markerEnd?.color !== selectedMarkerColor;
+          // Check if stroke color needs update
+          const strokeNeedsUpdate = edge.style?.stroke !== selectedMarkerColor || edge.style?.strokeWidth !== selectedStrokeWidth;
+          
+          if (markerNeedsUpdate || strokeNeedsUpdate) {
+            hasChanges = true;
             return {
               ...edge,
-              markerEnd: {
+              style: {
+                ...edge.style,
+                stroke: selectedMarkerColor,
+                strokeWidth: selectedStrokeWidth,
+              },
+              markerEnd: edge.markerEnd ? {
                 ...edge.markerEnd,
                 color: selectedMarkerColor,
-              },
+              } : undefined,
             };
           }
-        } else if (!edge.selected && edge.markerEnd) {
+        } else {
           // Restore original colors for non-selected edges
-          let originalColor = '#041295'; // Default primary blue
-          if (edge.sourceHandle === 'success' || edge.sourceHandle === 'yes') {
-            originalColor = '#00BBDD'; // Success green
-          } else if (edge.sourceHandle === 'error' || edge.sourceHandle === 'no') {
-            originalColor = '#F5D4D4'; // Toned down error color
-          }
+          const originalStrokeWidth = 2; // Normal stroke width for non-selected
           
-          if (edge.markerEnd?.color !== originalColor) {
+          // Check if marker color needs update
+          const markerNeedsUpdate = edge.markerEnd && edge.markerEnd.color !== originalColor;
+          // Check if stroke color needs update
+          const strokeNeedsUpdate = edge.style?.stroke !== originalColor || edge.style?.strokeWidth !== originalStrokeWidth;
+          
+          if (markerNeedsUpdate || strokeNeedsUpdate) {
+            hasChanges = true;
             return {
               ...edge,
-              markerEnd: {
+              style: {
+                ...edge.style,
+                stroke: originalColor,
+                strokeWidth: originalStrokeWidth,
+              },
+              markerEnd: edge.markerEnd ? {
                 ...edge.markerEnd,
                 color: originalColor,
-              },
+              } : undefined,
             };
           }
         }
         return edge;
       });
       // Only update if there are actual changes to avoid infinite loop
-      const hasChanges = updated.some((edge, index) => {
-        const original = eds[index];
-        return original && edge.markerEnd?.color !== original.markerEnd?.color;
-      });
       return hasChanges ? updated : eds;
     });
-  }, [edges.length, edges.map(e => `${e.id}:${e.selected}`).join(','), setEdges]);
+  }, [edges, setEdges]);
 
   // persist journey to localStorage (debounced)
   const saveTimeoutRef = React.useRef(null);
@@ -484,11 +579,90 @@ function InnerCanvas() {
     }));
   }, [activeFormNodeId, setNodes]);
 
+  // Update handlers for HTTP node
+  const updateHttpNodeProperty = useCallback((property, value) => {
+    setNodes((nds) => nds.map(node => {
+      if (node.id === activeHttpNodeId) {
+        return { ...node, data: { ...node.data, [property]: value } };
+      }
+      return node;
+    }));
+  }, [activeHttpNodeId, setNodes]);
+
+  const updateHttpNodeHeader = useCallback((index, key, value) => {
+    setNodes((nds) => nds.map(node => {
+      if (node.id === activeHttpNodeId) {
+        const headers = [...(node.data?.headers || [])];
+        if (headers[index]) {
+          headers[index] = { ...headers[index], [key]: value };
+        }
+        return { ...node, data: { ...node.data, headers } };
+      }
+      return node;
+    }));
+  }, [activeHttpNodeId, setNodes]);
+
+  const addHttpNodeHeader = useCallback(() => {
+    setNodes((nds) => nds.map(node => {
+      if (node.id === activeHttpNodeId) {
+        const headers = [...(node.data?.headers || [])];
+        headers.push({ key: '', value: '' });
+        return { ...node, data: { ...node.data, headers } };
+      }
+      return node;
+    }));
+  }, [activeHttpNodeId, setNodes]);
+
+  const removeHttpNodeHeader = useCallback((index) => {
+    setNodes((nds) => nds.map(node => {
+      if (node.id === activeHttpNodeId) {
+        const headers = [...(node.data?.headers || [])];
+        headers.splice(index, 1);
+        return { ...node, data: { ...node.data, headers } };
+      }
+      return node;
+    }));
+  }, [activeHttpNodeId, setNodes]);
+
+  const updateHttpNodeContextVariable = useCallback((index, value) => {
+    setNodes((nds) => nds.map(node => {
+      if (node.id === activeHttpNodeId) {
+        const contextVariables = [...(node.data?.contextVariables || [])];
+        contextVariables[index] = value;
+        return { ...node, data: { ...node.data, contextVariables } };
+      }
+      return node;
+    }));
+  }, [activeHttpNodeId, setNodes]);
+
+  const addHttpNodeContextVariable = useCallback(() => {
+    setNodes((nds) => nds.map(node => {
+      if (node.id === activeHttpNodeId) {
+        const contextVariables = [...(node.data?.contextVariables || [])];
+        contextVariables.push('');
+        return { ...node, data: { ...node.data, contextVariables } };
+      }
+      return node;
+    }));
+  }, [activeHttpNodeId, setNodes]);
+
+  const removeHttpNodeContextVariable = useCallback((index) => {
+    setNodes((nds) => nds.map(node => {
+      if (node.id === activeHttpNodeId) {
+        const contextVariables = [...(node.data?.contextVariables || [])];
+        contextVariables.splice(index, 1);
+        return { ...node, data: { ...node.data, contextVariables } };
+      }
+      return node;
+    }));
+  }, [activeHttpNodeId, setNodes]);
+
   const closeSidesheet = useCallback(() => {
     // Deselect any selected nodes
     setNodes((nds) => nds.map(node => ({ ...node, selected: false })));
     setSelectedElements([]);
     setActiveFormNodeId(null);
+    setActiveHttpNodeId(null);
   }, [setNodes]);
 
   const deleteSelectedFrontendForm = useCallback(() => {
@@ -707,6 +881,7 @@ function InnerCanvas() {
     if (nodeType === 'errorEnd') label = 'Error';
     if (nodeType === 'condition') label = 'Condition';
     if (nodeType === 'frontendForm') label = 'Frontend - Form';
+    if (nodeType === 'httpRequest') label = 'HTTP Request';
     
     // Calculate position centered in the currently visible viewport
     const container = canvasRef.current || document.querySelector('.journey-canvas-container');
@@ -727,7 +902,17 @@ function InnerCanvas() {
         x: centerFlow.x + offset.x, 
         y: centerFlow.y + offset.y 
       },
-      data: { label },
+      data: nodeType === 'httpRequest' ? {
+        label,
+        nodeType: 'backend', // default to backend
+        method: 'GET',
+        endpoint: '',
+        followRedirects: true,
+        headers: [],
+        caCertificate: '',
+        contextVariables: [],
+        requestTemplate: '',
+      } : { label },
       selected: false,
     };
     
@@ -768,11 +953,11 @@ function InnerCanvas() {
       let edgeColor = '#041295'; // Default blue - var(--color-primary-blue)
       let edgeLabel = '';
       if (params.sourceHandle === 'yes') {
-        edgeColor = '#00BBDD'; // Green for YES - var(--color-success-green)
-        edgeLabel = 'YES';
+        edgeColor = '#00BBDD'; // Green for true - var(--color-success-green)
+        edgeLabel = 'true';
       } else if (params.sourceHandle === 'no') {
         edgeColor = '#F5D4D4'; // Toned down error color - approximates rgba(224, 30, 0, 0.1) background tone of error node
-        edgeLabel = 'NO';
+        edgeLabel = 'false';
       } else if (params.sourceHandle === 'success') {
         edgeColor = '#00BBDD'; // var(--color-success-green)
         edgeLabel = 'success';
@@ -789,6 +974,7 @@ function InnerCanvas() {
         targetHandle: params.targetHandle || 'left',
         type: 'default',
         animated: false,
+        interactionWidth: 30, // Extended grab area including arrowhead
         style: { stroke: edgeColor, strokeWidth: 2 },
         markerEnd: {
           type: 'arrowclosed',
@@ -817,13 +1003,145 @@ function InnerCanvas() {
     [setEdges, nodes, edges]
   );
 
+  // Handle edge updates (redrawing connectors)
+  // Only allow updates on selected edges
+  const onEdgeUpdate = useCallback(
+    (oldEdge, newConnection) => {
+      // Check if the edge being updated is selected
+      const currentEdge = edges.find(e => e.id === oldEdge.id);
+      
+      // If edge is not selected, do not allow update
+      if (!currentEdge?.selected) {
+        return;
+      }
+      
+      
+      // Original edge is selected, proceed with normal update
+      // Validate connection rules (same as onConnect)
+      const sourceNode = nodes.find(n => n.id === newConnection.source);
+      const targetNode = nodes.find(n => n.id === newConnection.target);
+      
+      // Start nodes can only have outgoing connections
+      if (sourceNode?.type === 'start') {
+        // Check if start node already has an outgoing connection (excluding the current edge being updated)
+        const existingOutgoing = edges.some(edge => 
+          edge.source === newConnection.source && edge.id !== oldEdge.id
+        );
+        if (existingOutgoing) {
+          alert('Start node can only have one outgoing connection');
+          return;
+        }
+      }
+
+      // Determine edge color and label based on source handle
+      let edgeColor = '#041295'; // Default blue - var(--color-primary-blue)
+      let edgeLabel = '';
+      if (newConnection.sourceHandle === 'yes') {
+        edgeColor = '#00BBDD'; // Green for true - var(--color-success-green)
+        edgeLabel = 'true';
+      } else if (newConnection.sourceHandle === 'no') {
+        edgeColor = '#F5D4D4'; // Toned down error color
+        edgeLabel = 'false';
+      } else if (newConnection.sourceHandle === 'success') {
+        edgeColor = '#00BBDD'; // var(--color-success-green)
+        edgeLabel = 'success';
+      } else if (newConnection.sourceHandle === 'error') {
+        edgeColor = '#F5D4D4'; // Toned down error color
+        edgeLabel = 'error';
+      }
+
+      // Update the edge with new connection, preserving some properties
+      setEdges((eds) => {
+        // Check if new edge ID would conflict with existing edges
+        const newEdgeId = `e${newConnection.source}-${newConnection.target}`;
+        const hasConflict = eds.some(edge => edge.id === newEdgeId && edge.id !== oldEdge.id);
+        
+        // If reconnecting to the same node, keep the original ID to preserve selection
+        const isReconnectingToSameNode = 
+          oldEdge.source === newConnection.source && 
+          oldEdge.target === newConnection.target &&
+          oldEdge.sourceHandle === newConnection.sourceHandle &&
+          oldEdge.targetHandle === newConnection.targetHandle;
+        
+        // If there's a conflict, generate a unique ID (unless reconnecting to same node)
+        let finalEdgeId = isReconnectingToSameNode ? oldEdge.id : newEdgeId;
+        if (hasConflict && !isReconnectingToSameNode) {
+          let counter = 1;
+          while (eds.some(edge => edge.id === `${newEdgeId}-${counter}`)) {
+            counter++;
+          }
+          finalEdgeId = `${newEdgeId}-${counter}`;
+        }
+
+        // Preserve selection state - edge is selected since we only allow updates on selected edges
+        const wasSelected = true; // Always true since we only allow updates on selected edges
+        
+        // Selected edges use primary blue for marker and thicker stroke
+        const selectedMarkerColor = '#041295'; // Primary blue for selected state
+        const strokeWidth = 4; // Thicker stroke for selected edges
+
+        return eds.map((edge) => {
+          if (edge.id === oldEdge.id) {
+            return {
+              ...edge,
+              source: newConnection.source,
+              target: newConnection.target,
+              sourceHandle: newConnection.sourceHandle || edge.sourceHandle || 'right',
+              targetHandle: newConnection.targetHandle || edge.targetHandle || 'left',
+              // Update edge id to reflect new connection (or keep original if reconnecting to same node)
+              id: finalEdgeId,
+              // Preserve selection state - always true for updated edges
+              selected: true,
+              // Selected edges always use primary blue
+              style: { stroke: selectedMarkerColor, strokeWidth },
+              markerEnd: {
+                type: 'arrowclosed',
+                color: selectedMarkerColor, // Primary blue for selected edge arrowhead
+                width: 20,
+                height: 20,
+              },
+              label: edgeLabel,
+              labelStyle: {
+                fill: edgeColor,
+                fontWeight: 600,
+                fontSize: 12,
+              },
+              labelBgStyle: {
+                fill: 'white',
+                fillOpacity: 0.8,
+                stroke: edgeColor,
+                strokeWidth: 1,
+                rx: 4,
+                ry: 4,
+              },
+              interactionWidth: 30, // Extended grab area including arrowhead
+            };
+          }
+          return edge;
+        });
+      });
+    },
+    [setEdges, nodes, edges]
+  );
+
   // Handle selection changes
   const onSelectionChange = useCallback(({ nodes: selectedNodes, edges: selectedEdges }) => {
     // Only store selected elements and active form id; avoid mutating nodes/edges here
     setSelectedElements([...selectedNodes, ...selectedEdges]);
     const activeForm = selectedNodes.find(n => n.type === 'frontendForm');
+    const activeHttp = selectedNodes.find(n => n.type === 'httpRequest');
     setActiveFormNodeId(activeForm ? activeForm.id : null);
-  }, []);
+    setActiveHttpNodeId(activeHttp ? activeHttp.id : null);
+    
+    // Ensure edges are only selected if explicitly clicked, not automatically when nodes are selected
+    setEdges((eds) => {
+      const selectedEdgeIds = new Set(selectedEdges.map(e => e.id));
+      return eds.map(edge => ({
+        ...edge,
+        selected: selectedEdgeIds.has(edge.id) // Only selected if explicitly in selectedEdges
+      }));
+    });
+  }, [setEdges]);
 
   // Handle keyboard events for deletion
   const onKeyDown = useCallback((event) => {
@@ -907,7 +1225,12 @@ function InnerCanvas() {
     >
       <ReactFlow
         nodes={nodes}
-        edges={edges}
+        edges={[...edges].sort((a, b) => {
+          // Put selected edges last so they render on top (React Flow picks top edge first)
+          if (a.selected && !b.selected) return 1;
+          if (!a.selected && b.selected) return -1;
+          return 0;
+        })}
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
         onConnect={onConnect}
@@ -931,7 +1254,14 @@ function InnerCanvas() {
         selectNodesOnDrag={false}
         deleteKeyCode={null}
         elementsSelectable={true}
-        edgesUpdatable={false}
+        edgesUpdatable={(edge) => {
+          // Find the edge in our state to check selection
+          // React Flow passes the edge object, but we need to check our state
+          const stateEdge = edges.find(e => e.id === edge.id);
+          // Only allow updates if the edge is explicitly selected in our state
+          return !!stateEdge?.selected;
+        }}
+        onEdgeUpdate={onEdgeUpdate}
         nodesConnectable={true}
         nodesFocusable={true}
         edgesFocusable={true}
@@ -999,6 +1329,12 @@ function InnerCanvas() {
               </div>
               <span>Condition Node</span>
             </div>
+            <div className="node-menu-item" onClick={() => addNode('httpRequest')}>
+              <div className="node-menu-icon frontend-form-icon">
+                <span className="material-icons">http</span>
+              </div>
+              <span>HTTP Request</span>
+            </div>
             {/* Future node types can be added here */}
           </div>
         )}
@@ -1007,6 +1343,200 @@ function InnerCanvas() {
       {/* Overlay to close menu when clicking outside */}
       {showNodeMenu && (
         <div className="menu-overlay" onClick={closeNodeMenu} />
+      )}
+
+      {/* Sidesheet for HTTP Request */}
+      {selectedHttpNode && (
+        <div 
+          className="sidesheet"
+          onMouseDown={(e) => e.stopPropagation()}
+          onClick={(e) => e.stopPropagation()}
+          onPointerDown={(e) => e.stopPropagation()}
+        >
+          <div className="sidesheet-header">
+            <div className="sidesheet-title">HTTP Request</div>
+          </div>
+          <div className="sidesheet-tabs">
+            <button className={`tab-btn ${activeHttpTab==='details'?'active':''}`} onClick={()=>{
+              setActiveHttpTab('details');
+              if (selectedHttpNode?.id) localStorage.setItem(`sidesheetTab:${selectedHttpNode.id}`, 'details');
+            }}>Details</button>
+            <button className={`tab-btn ${activeHttpTab==='request'?'active':''}`} onClick={()=>{
+              setActiveHttpTab('request');
+              if (selectedHttpNode?.id) localStorage.setItem(`sidesheetTab:${selectedHttpNode.id}`, 'request');
+            }}>Request</button>
+            <button className={`tab-btn ${activeHttpTab==='context'?'active':''}`} onClick={()=>{
+              setActiveHttpTab('context');
+              if (selectedHttpNode?.id) localStorage.setItem(`sidesheetTab:${selectedHttpNode.id}`, 'context');
+            }}>Context</button>
+          </div>
+          <div className="sidesheet-body">
+            {activeHttpTab === 'details' && (
+              <div>
+                <label className="input-label" htmlFor="http-node-name">Name</label>
+                <input
+                  id="http-node-name"
+                  className="text-input"
+                  type="text"
+                  value={selectedHttpNode.data?.label || ''}
+                  onChange={(e) => updateHttpNodeProperty('label', e.target.value)}
+                  placeholder="HTTP Request"
+                />
+                <div style={{ height: '12px' }} />
+                <label className="input-label" htmlFor="http-node-type">Type</label>
+                <select
+                  id="http-node-type"
+                  className="text-input"
+                  value={selectedHttpNode.data?.nodeType || 'backend'}
+                  onChange={(e) => updateHttpNodeProperty('nodeType', e.target.value)}
+                >
+                  <option value="frontend">Frontend</option>
+                  <option value="backend">Backend</option>
+                </select>
+              </div>
+            )}
+            {activeHttpTab === 'request' && (
+              <div>
+                <label className="input-label" htmlFor="http-method">API Method</label>
+                <select
+                  id="http-method"
+                  className="text-input"
+                  value={selectedHttpNode.data?.method || 'GET'}
+                  onChange={(e) => updateHttpNodeProperty('method', e.target.value)}
+                >
+                  <option value="GET">GET</option>
+                  <option value="POST">POST</option>
+                  <option value="PUT">PUT</option>
+                  <option value="PATCH">PATCH</option>
+                  <option value="DELETE">DELETE</option>
+                  <option value="HEAD">HEAD</option>
+                  <option value="OPTIONS">OPTIONS</option>
+                </select>
+                <div style={{ height: '12px' }} />
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <input
+                    type="checkbox"
+                    id="follow-redirects"
+                    checked={selectedHttpNode.data?.followRedirects || false}
+                    onChange={(e) => updateHttpNodeProperty('followRedirects', e.target.checked)}
+                  />
+                  <label className="input-label" htmlFor="follow-redirects" style={{ margin: 0 }}>Follow redirects</label>
+                </div>
+                <div style={{ height: '12px' }} />
+                <label className="input-label" htmlFor="http-endpoint">API Endpoint</label>
+                <input
+                  id="http-endpoint"
+                  className="text-input"
+                  type="text"
+                  value={selectedHttpNode.data?.endpoint || ''}
+                  onChange={(e) => updateHttpNodeProperty('endpoint', e.target.value)}
+                  placeholder="https://api.example.com/endpoint"
+                />
+                <div style={{ height: '24px' }} />
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                  <label className="input-label" style={{ margin: 0 }}>Request Headers</label>
+                  <button className="btn-secondary" onClick={addHttpNodeHeader} style={{ padding: '4px 8px', fontSize: '12px' }}>
+                    Add Header
+                  </button>
+                </div>
+                {(selectedHttpNode.data?.headers || []).map((header, idx) => (
+                  <div key={idx} style={{ display: 'flex', gap: '8px', marginBottom: '8px', alignItems: 'center' }}>
+                    <input
+                      className="text-input"
+                      style={{ flex: 1 }}
+                      type="text"
+                      value={header.key || ''}
+                      onChange={(e) => updateHttpNodeHeader(idx, 'key', e.target.value)}
+                      placeholder="Header name"
+                    />
+                    <input
+                      className="text-input"
+                      style={{ flex: 1 }}
+                      type="text"
+                      value={header.value || ''}
+                      onChange={(e) => updateHttpNodeHeader(idx, 'value', e.target.value)}
+                      placeholder="Header value"
+                    />
+                    <button 
+                      className="btn-danger" 
+                      onClick={() => removeHttpNodeHeader(idx)}
+                      style={{ padding: '4px 8px' }}
+                      title="Remove"
+                    >
+                      <span className="material-icons" style={{ fontSize: '16px' }}>delete_outline</span>
+                    </button>
+                  </div>
+                ))}
+                {selectedHttpNode.data?.nodeType === 'backend' && (
+                  <>
+                    <div style={{ height: '24px' }} />
+                    <label className="input-label" htmlFor="ca-certificate">CA Certificate (TLS Configuration)</label>
+                    <textarea
+                      id="ca-certificate"
+                      className="text-input"
+                      rows={6}
+                      value={selectedHttpNode.data?.caCertificate || ''}
+                      onChange={(e) => updateHttpNodeProperty('caCertificate', e.target.value)}
+                      placeholder="PEM encoded certificate..."
+                    />
+                  </>
+                )}
+                <div style={{ height: '24px' }} />
+                <label className="input-label" htmlFor="request-template">Request Template</label>
+                <textarea
+                  id="request-template"
+                  className="text-input"
+                  rows={8}
+                  value={selectedHttpNode.data?.requestTemplate || ''}
+                  onChange={(e) => updateHttpNodeProperty('requestTemplate', e.target.value)}
+                  placeholder={'Request body template (use {{variable}} for context variables)'}
+                />
+                <div style={{ height: '8px' }} />
+                <div style={{ fontSize: '12px', color: 'var(--color-gray-500)', fontStyle: 'italic' }}>
+                  {'Use {{variable}} syntax to access context variables. Available: data, status, statusText, headers, config'}
+                </div>
+              </div>
+            )}
+            {activeHttpTab === 'context' && (
+              <div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                  <label className="input-label" style={{ margin: 0 }}>Store Variables in Context</label>
+                  <button className="btn-secondary" onClick={addHttpNodeContextVariable} style={{ padding: '4px 8px', fontSize: '12px' }}>
+                    Add Variable
+                  </button>
+                </div>
+                <div style={{ fontSize: '12px', color: 'var(--color-gray-500)', marginBottom: '12px' }}>
+                  Select which response fields to store in context: data, status, statusText, headers, config
+                </div>
+                {(selectedHttpNode.data?.contextVariables || []).map((variable, idx) => (
+                  <div key={idx} style={{ display: 'flex', gap: '8px', marginBottom: '8px', alignItems: 'center' }}>
+                    <select
+                      className="text-input"
+                      style={{ flex: 1 }}
+                      value={variable}
+                      onChange={(e) => updateHttpNodeContextVariable(idx, e.target.value)}
+                    >
+                      <option value="">Select variable...</option>
+                      <option value="data">data</option>
+                      <option value="status">status</option>
+                      <option value="statusText">statusText</option>
+                      <option value="headers">headers</option>
+                      <option value="config">config</option>
+                    </select>
+                    <button 
+                      className="btn-danger" 
+                      onClick={() => removeHttpNodeContextVariable(idx)}
+                      style={{ padding: '4px 8px' }}
+                      title="Remove"
+                    >
+                      <span className="material-icons" style={{ fontSize: '16px' }}>delete_outline</span>
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
       )}
 
       {/* Sidesheet for Frontend - Form */}

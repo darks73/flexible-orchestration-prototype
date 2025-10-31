@@ -422,6 +422,11 @@ h4, .h4 {
 .react-flow__edge.selected {
     outline: 2px solid var(--color-primary-blue);
     outline-offset: 2px;
+    z-index: 10; /* Ensure selected edges are on top */
+}
+
+.react-flow__edge:not(.selected) {
+    z-index: 1; /* Non-selected edges below */
 }
 
 /* Selected edge markers (arrow heads) - match edge color */
@@ -458,6 +463,7 @@ h4, .h4 {
     border: 2px solid var(--color-white);
     border-radius: 50%;
     transition: all 0.2s ease;
+    pointer-events: all;
 }
 
 .react-flow__handle:hover {
