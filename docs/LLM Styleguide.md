@@ -152,6 +152,104 @@ The left navigation uses a hierarchical structure where:
 - **Icon style**: Outlined, consistent stroke weight
 - **Color**: Inherit from parent text color
 
+## Canvas/Storyboard Styling
+
+The canvas represents workflow/journey diagrams with nodes and connectors.
+
+### Canvas Background
+- **Background**: Light gray (#F7F7F9 / gray-25)
+- **Grid**: Subtle dot pattern for visual reference
+
+### Node Styles
+
+#### Start Node
+- **Shape**: Circle, 60px diameter
+- **Background**: Light gray (#F7F7F9 / gray-25)
+- **Border**: 2px solid #E6E7F4 (blue-50)
+- **Text**: Roboto Medium, 12px, weight 500, color #383A4B (gray-700)
+- **Icon**: Material Icon "lock_outline", 16px, primary blue (#041295)
+- **Icon position**: Absolute, top-right with white circular background and shadow
+- **Shadow**: Standard elevation shadow
+- **Handle**: Primary blue (#041295), 8px diameter, white border
+
+#### End Node (Success)
+- **Shape**: Circle, 60px diameter
+- **Background**: Light success green (rgba(0, 187, 221, 0.1))
+- **Border**: 2px solid #00BBDD (success green)
+- **Text**: Roboto Medium, 12px, weight 500, color #00BBDD
+- **Shadow**: Standard elevation shadow
+- **Selected state**: Primary blue outline, blue glow effect
+
+#### End Node (Error)
+- **Shape**: Circle, 60px diameter
+- **Background**: Light error red (rgba(224, 30, 0, 0.1))
+- **Border**: 2px solid #E01E00 (error red)
+- **Text**: Roboto Medium, 12px, weight 500, color #E01E00
+- **Shadow**: Standard elevation shadow
+- **Selected state**: Primary blue outline, blue glow effect
+
+#### Condition Node
+- **Shape**: Diamond (polygon with 4 points)
+- **Default state**:
+  - **Background**: Light blue (#E6E7F4 / blue-50)
+  - **Border**: 2px solid #041295 (primary blue)
+  - **Text**: Roboto Medium, 12px, weight 500, color #041295
+  - **Shadow**: Standard elevation shadow
+- **Selected state**:
+  - **Background**: Light blue tint (rgba(0, 187, 221, 0.15))
+  - **Border**: Primary blue (#041295)
+  - **Text**: Primary blue (#041295)
+  - **Glow**: 4px blue glow (rgba(0, 187, 221, 0.2))
+  - **Transform**: Scale 1.05
+
+#### Frontend Form Node
+- **Shape**: Rounded rectangle (border-radius 8px)
+- **Width**: 160px, min-height: 80px
+- **Background**: Light blue (#E6E7F4 / blue-50)
+- **Border**: 2px solid #041295 (primary blue)
+- **Padding**: 12px (spacing-3)
+- **Title**: Roboto Bold, 12px, weight 700, color #041295
+- **Subtitle**: Roboto Medium, 11px, weight 500, color #383A4B (gray-700)
+- **Shadow**: Standard elevation shadow
+- **Selected state**: Primary blue outline with 4px blue glow
+- **Port badges**: Small labels for success/error outputs with appropriate colors
+
+### Connector/Edge Styles
+
+#### Default Connectors
+- **Color**: Primary blue (#041295)
+- **Width**: 2px
+- **Arrow heads**: Closed arrow, matches edge color
+- **Success paths**: Light blue (#00BBDD)
+- **Error paths**: Muted red (#F5D4D4) to match error node background tone
+
+#### Selected Connectors
+- **Edge path**: Primary blue (#041295), 4px width
+- **Arrow head**: Primary blue (#041295) to match edge path
+- **Outline**: 2px solid primary blue with 2px offset
+- **Hover state**: Light blue (#00BBDD), 3px width
+
+### Handle Styles
+- **Size**: 8px diameter
+- **Default color**: Primary blue (#041295)
+- **Success handles**: Success green (#00BBDD)
+- **Error handles**: Error red (#E01E00)
+- **Border**: 2px solid white
+- **Position**: Positioned on node edges (top, bottom, left, right)
+
+### Node Selection States
+- **Outline**: 2px solid primary blue (#041295)
+- **Offset**: 2px outline offset
+- **Glow**: 4px blue glow effect (rgba(4, 18, 149, 0.12))
+- **Transform**: Scale 1.05 for selected condition nodes
+- **Shadow**: Enhanced shadow on selection
+
+### Edge Labels
+- **Background**: White with 80% opacity
+- **Border**: 1px solid matching edge color
+- **Text**: Roboto Medium, 12px, weight 600, matching edge color
+- **Border radius**: 4px
+
 ## Implementation Notes
 
 - Use semantic color tokens when available
