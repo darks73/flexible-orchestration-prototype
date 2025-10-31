@@ -610,14 +610,14 @@ function InnerCanvas() {
 
   const getElementIcon = (type) => {
     const icons = {
-      input: '📝',
-      password: '🔒',
-      checkbox: '☑️',
-      label: '🏷️',
-      button: '🔘',
-      row: '📦',
+      input: 'text_fields',
+      password: 'lock_outline',
+      checkbox: 'check_box_outline_blank',
+      label: 'label_outline',
+      button: 'radio_button_checked',
+      row: 'view_column',
     };
-    return icons[type] || '📄';
+    return icons[type] || 'description';
   };
 
   // Debug logging
@@ -900,19 +900,27 @@ function InnerCanvas() {
         {showNodeMenu && (
           <div className="node-menu">
             <div className="node-menu-item" onClick={() => addNode('successEnd')}>
-              <div className="node-menu-icon end-icon">✔</div>
+              <div className="node-menu-icon end-icon">
+                <span className="material-icons">check_circle_outline</span>
+              </div>
               <span>Success End</span>
             </div>
             <div className="node-menu-item" onClick={() => addNode('errorEnd')}>
-              <div className="node-menu-icon end-error-icon">✖</div>
+              <div className="node-menu-icon end-error-icon">
+                <span className="material-icons">cancel</span>
+              </div>
               <span>Error End</span>
             </div>
             <div className="node-menu-item" onClick={() => addNode('frontendForm')}>
-              <div className="node-menu-icon frontend-form-icon">UI</div>
+              <div className="node-menu-icon frontend-form-icon">
+                <span className="material-icons">widgets</span>
+              </div>
               <span>Frontend - Form</span>
             </div>
             <div className="node-menu-item" onClick={() => addNode('condition')}>
-              <div className="node-menu-icon condition-icon">?</div>
+              <div className="node-menu-icon condition-icon">
+                <span className="material-icons">help_outline</span>
+              </div>
               <span>Condition Node</span>
             </div>
             {/* Future node types can be added here */}
@@ -975,12 +983,24 @@ function InnerCanvas() {
                 <div className="form-elements">
                   <div className="section-title">Elements</div>
                   <div className="element-actions">
-                    <button className="btn-secondary element-icon-btn" title="Add Input" onClick={()=>addElement('input')}>📝</button>
-                    <button className="btn-secondary element-icon-btn" title="Add Password" onClick={()=>addElement('password')}>🔒</button>
-                    <button className="btn-secondary element-icon-btn" title="Add Checkbox" onClick={()=>addElement('checkbox')}>☑️</button>
-                    <button className="btn-secondary element-icon-btn" title="Add Label" onClick={()=>addElement('label')}>🏷️</button>
-                    <button className="btn-secondary element-icon-btn" title="Add Button" onClick={()=>addElement('button')}>🔘</button>
-                    <button className="btn-secondary element-icon-btn" title="Add Row (group)" onClick={()=>addElement('row')}>📦</button>
+                    <button className="btn-secondary element-icon-btn" title="Add Input" onClick={()=>addElement('input')}>
+                      <span className="material-icons">text_fields</span>
+                    </button>
+                    <button className="btn-secondary element-icon-btn" title="Add Password" onClick={()=>addElement('password')}>
+                      <span className="material-icons">lock_outline</span>
+                    </button>
+                    <button className="btn-secondary element-icon-btn" title="Add Checkbox" onClick={()=>addElement('checkbox')}>
+                      <span className="material-icons">check_box_outline_blank</span>
+                    </button>
+                    <button className="btn-secondary element-icon-btn" title="Add Label" onClick={()=>addElement('label')}>
+                      <span className="material-icons">label_outline</span>
+                    </button>
+                    <button className="btn-secondary element-icon-btn" title="Add Button" onClick={()=>addElement('button')}>
+                      <span className="material-icons">radio_button_checked</span>
+                    </button>
+                    <button className="btn-secondary element-icon-btn" title="Add Row (group)" onClick={()=>addElement('row')}>
+                      <span className="material-icons">view_column</span>
+                    </button>
                   </div>
                   <div className="element-list" onDragOver={onDragOver}>
                     {(formSchema?.elements||[]).map((el, idx) => (
@@ -992,7 +1012,9 @@ function InnerCanvas() {
                           onDrop={(e)=>onDrop(e, idx)}
                           onClick={()=>setSelectedElementIndex(idx)}
                         >
-                          <span className="element-type">{getElementIcon(el.type)}</span>
+                          <span className="element-type">
+                            <span className="material-icons">{getElementIcon(el.type)}</span>
+                          </span>
                           {selectedElementIndex===idx ? (
                             <input
                               className="text-input"
@@ -1009,11 +1031,11 @@ function InnerCanvas() {
                           )}
                           <button
                             className="btn-danger"
-                            style={{ marginLeft: 'auto', padding: '2px 6px' }}
+                            style={{ marginLeft: 'auto', padding: '2px 6px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                             title="Remove"
                             onClick={(e)=>{ e.stopPropagation(); deleteElement(idx); }}
                           >
-                            🗑
+                            <span className="material-icons" style={{ fontSize: '16px' }}>delete_outline</span>
                           </button>
                         </div>
                         {el.type === 'row' && (
@@ -1031,9 +1053,13 @@ function InnerCanvas() {
                               onDrop={(e)=>{ e.stopPropagation(); onChildDrop(e, idx, cIdx); }}
                                 onClick={(e)=>e.stopPropagation()}
                               >
-                                <span className="element-type">{getElementIcon(child.type)}</span>
+                                <span className="element-type">
+                                  <span className="material-icons">{getElementIcon(child.type)}</span>
+                                </span>
                                 <span className="element-label">{child.label || child.i18nKey || child.id}</span>
-                                <button className="btn-danger" style={{ marginLeft:'auto', padding:'2px 6px' }} title="Remove" onClick={(e)=>{e.stopPropagation(); deleteChild(idx,cIdx);}}>🗑</button>
+                                <button className="btn-danger" style={{ marginLeft:'auto', padding:'2px 6px', display: 'flex', alignItems: 'center', justifyContent: 'center' }} title="Remove" onClick={(e)=>{e.stopPropagation(); deleteChild(idx,cIdx);}}>
+                                  <span className="material-icons" style={{ fontSize: '16px' }}>delete_outline</span>
+                                </button>
                               </div>
                             ))}
                             {(el.children||[]).length === 0 && (

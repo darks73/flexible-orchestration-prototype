@@ -22,7 +22,7 @@ export default function FormEditorFields({ element, onChange }) {
     <div className="editor-fields">
       <div className="section-title">Basic</div>
       <label className="input-label">Id</label>
-      <input className="text-input" value={b.id} readOnly />
+      <div className="read-only-text">{b.id}</div>
 
       <label className="input-label">Label</label>
       <input className="text-input" value={b.label || ''} onChange={(e) => set('label', e.target.value)} />

@@ -1,3 +1,8 @@
+/* ============================================
+   STYLE GUIDE IMPLEMENTATION
+   Based on LLM Styleguide.md
+   ============================================ */
+
 /* Reset and Base Styles */
 * {
     margin: 0;
@@ -5,11 +10,40 @@
     box-sizing: border-box;
 }
 
+/* Color Palette - Style Guide */
+:root {
+    /* Primary Colors */
+    --color-primary-blue: #041295;
+    --color-light-blue: #00BBDD;
+    --color-blue-50: #E6E7F4;
+    
+    /* Status Colors */
+    --color-error-red: #E01E00;
+    --color-success-green: #00BBDD;
+    --color-warning-orange: #FFA500;
+    
+    /* Neutral Colors */
+    --color-white: #FFFFFF;
+    --color-gray-25: #F7F7F9;
+    --color-gray-500: #5D607E;
+    --color-gray-700: #383A4B;
+    --color-gray-750: #333344;
+    --color-gray-900: #131319;
+    
+    /* Spacing System (4px base unit) */
+    --spacing-2: 8px;   /* Small */
+    --spacing-3: 12px;  /* Medium */
+    --spacing-4: 16px;  /* Large */
+    --spacing-6: 24px;  /* XLarge */
+    --spacing-8: 32px;  /* XXLarge */
+}
+
 body {
-    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-    line-height: 1.6;
-    color: #333;
-    background-color: #f8fafc;
+    font-family: 'Roboto', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-weight: 400;
+    line-height: 1.5;
+    color: var(--color-gray-900);
+    background-color: var(--color-gray-25);
     height: 100vh;
     overflow: hidden;
 }
@@ -17,6 +51,88 @@ body {
 #root {
     height: 100vh;
     width: 100vw;
+}
+
+/* ============================================
+   TYPOGRAPHY - Style Guide
+   ============================================ */
+
+/* Headings */
+h1, .h1 {
+    font-family: 'Roboto', sans-serif;
+    font-size: 42px;
+    font-weight: 500;
+    line-height: 50px;
+    color: var(--color-primary-blue);
+    margin: 0;
+}
+
+h2, .h2 {
+    font-family: 'Roboto', sans-serif;
+    font-size: 28px;
+    font-weight: 600;
+    line-height: 36px;
+    color: var(--color-primary-blue);
+    margin: 0;
+}
+
+h3, .h3 {
+    font-family: 'Roboto', sans-serif;
+    font-size: 20px;
+    font-weight: 700;
+    line-height: 28px;
+    color: var(--color-primary-blue);
+    margin: 0;
+}
+
+h4, .h4 {
+    font-family: 'Roboto', sans-serif;
+    font-size: 16px;
+    font-weight: 700;
+    line-height: 24px;
+    color: var(--color-primary-blue);
+    margin: 0;
+}
+
+/* Body Text */
+.body-1-regular {
+    font-family: 'Roboto', sans-serif;
+    font-size: 16px;
+    font-weight: 400;
+    line-height: 24px;
+    color: var(--color-gray-900);
+}
+
+.body-1-medium {
+    font-family: 'Roboto', sans-serif;
+    font-size: 16px;
+    font-weight: 500;
+    line-height: 24px;
+    color: var(--color-gray-900);
+}
+
+.body-1-bold {
+    font-family: 'Roboto', sans-serif;
+    font-size: 16px;
+    font-weight: 700;
+    line-height: 24px;
+    color: var(--color-gray-900);
+}
+
+.body-2-regular {
+    font-family: 'Roboto', sans-serif;
+    font-size: 14px;
+    font-weight: 400;
+    line-height: 20px;
+    color: var(--color-gray-500);
+}
+
+.body-2-medium {
+    font-family: 'Roboto', sans-serif;
+    font-size: 14px;
+    font-weight: 500;
+    line-height: 20px;
+    color: var(--color-gray-700);
 }
 
 /* Canvas Container */
@@ -59,27 +175,29 @@ body {
 }
 
 .react-flow__controls {
-    background: white;
-    border: 1px solid #e2e8f0;
-    border-radius: 8px;
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    background: var(--color-white);
+    border: 1px solid var(--color-blue-50);
+    border-radius: 2px;
+    box-shadow: 0px 2px 4px 0px rgba(1, 5, 50, 0.04), 
+                0px 4px 5px 0px rgba(1, 5, 50, 0.04), 
+                0px 1px 10px 0px rgba(1, 5, 50, 0.08);
 }
 
 .react-flow__controls-button {
     border: none;
     background: transparent;
-    color: #64748b;
+    color: var(--color-gray-500);
     transition: color 0.2s ease;
 }
 
 .react-flow__controls-button:hover {
-    color: #2563eb;
+    color: var(--color-primary-blue);
 }
 
 .react-flow__minimap {
-    background: white;
-    border: 1px solid #e2e8f0;
-    border-radius: 8px;
+    background: var(--color-white);
+    border: 1px solid var(--color-blue-50);
+    border-radius: 2px;
 }
 
 /* Custom Node Styles */
@@ -272,22 +390,22 @@ body {
 
 /* Canvas Background */
 .react-flow__background {
-    background-color: #f8fafc;
+    background-color: var(--color-gray-25);
 }
 
 /* Edge Styles */
 .react-flow__edge-path {
-    stroke: #2563eb;
+    stroke: var(--color-primary-blue);
     stroke-width: 2;
 }
 
 .react-flow__edge.selected .react-flow__edge-path {
-    stroke: #dc2626 !important;
+    stroke: var(--color-error-red) !important;
     stroke-width: 4 !important;
 }
 
 .react-flow__edge:hover .react-flow__edge-path {
-    stroke: #1d4ed8;
+    stroke: var(--color-light-blue);
     stroke-width: 3;
 }
 
@@ -300,28 +418,28 @@ body {
 .react-flow__handle {
     width: 8px;
     height: 8px;
-    background: #2563eb;
-    border: 2px solid white;
+    background: var(--color-primary-blue);
+    border: 2px solid var(--color-white);
     border-radius: 50%;
     transition: all 0.2s ease;
 }
 
 .react-flow__handle:hover {
-    background: #1d4ed8;
+    background: var(--color-light-blue);
     transform: scale(1.2);
 }
 
 .react-flow__handle-connecting {
-    background: #1d4ed8;
+    background: var(--color-light-blue);
     transform: scale(1.3);
 }
 
 .react-flow__handle-valid {
-    background: #059669;
+    background: var(--color-success-green);
 }
 
 .react-flow__handle-invalid {
-    background: #dc2626;
+    background: var(--color-error-red);
 }
 
 /* Selection Styles */
@@ -364,13 +482,15 @@ body {
     width: 50px;
     height: 50px;
     border-radius: 50%;
-    background: #2563eb;
-    color: white;
+    background: var(--color-primary-blue);
+    color: var(--color-white);
     border: none;
     font-size: 24px;
     font-weight: bold;
     cursor: pointer;
-    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+    box-shadow: 0px 2px 4px 0px rgba(1, 5, 50, 0.04), 
+                0px 4px 5px 0px rgba(1, 5, 50, 0.04), 
+                0px 1px 10px 0px rgba(1, 5, 50, 0.08);
     transition: all 0.2s ease;
     display: flex;
     align-items: center;
@@ -378,9 +498,11 @@ body {
 }
 
 .add-node-button:hover {
-    background: #1d4ed8;
+    background: var(--color-light-blue);
     transform: scale(1.1);
-    box-shadow: 0 6px 16px rgba(37, 99, 235, 0.4);
+    box-shadow: 0px 4px 8px 0px rgba(1, 5, 50, 0.06), 
+                0px 6px 10px 0px rgba(1, 5, 50, 0.06), 
+                0px 2px 12px 0px rgba(1, 5, 50, 0.1);
 }
 
 .add-node-button:active {
@@ -392,25 +514,27 @@ body {
     position: absolute;
     top: 60px;
     right: 0;
-    background: white;
-    border: 1px solid #e2e8f0;
-    border-radius: 8px;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    background: var(--color-white);
+    border: 1px solid var(--color-blue-50);
+    border-radius: 2px;
+    box-shadow: 0px 2px 4px 0px rgba(1, 5, 50, 0.04), 
+                0px 4px 5px 0px rgba(1, 5, 50, 0.04), 
+                0px 1px 10px 0px rgba(1, 5, 50, 0.08);
     min-width: 150px;
-    padding: 8px 0;
+    padding: var(--spacing-2) 0;
     z-index: 1001;
 }
 
 .node-menu-item {
     display: flex;
     align-items: center;
-    padding: 12px 16px;
+    padding: var(--spacing-3) var(--spacing-4);
     cursor: pointer;
     transition: background-color 0.2s ease;
 }
 
 .node-menu-item:hover {
-    background-color: #f8fafc;
+    background-color: var(--color-gray-25);
 }
 
 .node-menu-icon {
@@ -448,9 +572,11 @@ body {
 }
 
 .node-menu-item span {
+    font-family: 'Roboto', sans-serif;
     font-size: 14px;
-    color: #374151;
     font-weight: 500;
+    line-height: 20px;
+    color: var(--color-gray-900);
 }
 
 /* Menu Overlay */
@@ -464,23 +590,29 @@ body {
     background: transparent;
 }
 
-/* Header */
+/* ============================================
+   LAYOUT STRUCTURE - Style Guide
+   ============================================ */
+
+/* Header (64px height, 100% width) */
 .header {
-    background: #fff;
-    border-bottom: 1px solid #e2e8f0;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    background: var(--color-white);
+    box-shadow: 0px 2px 4px 0px rgba(1, 5, 50, 0.04), 
+                0px 4px 5px 0px rgba(1, 5, 50, 0.04), 
+                0px 1px 10px 0px rgba(1, 5, 50, 0.08);
     position: absolute;
     top: 0;
     left: 0;
     right: 0;
     z-index: 100;
     height: 64px;
+    width: 100%;
 }
 
 .header-content {
-    max-width: 1200px;
+    max-width: 100%;
     margin: 0 auto;
-    padding: 0 2rem;
+    padding: 0 var(--spacing-3);
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -488,9 +620,11 @@ body {
 }
 
 .logo h1 {
-    font-size: 1.5rem;
-    font-weight: 700;
-    color: #2563eb;
+    font-family: 'Roboto', sans-serif;
+    font-size: 16px;
+    font-weight: 500;
+    color: var(--color-gray-900);
+    margin: 0;
 }
 
 /* Canvas should account for header */
@@ -499,122 +633,781 @@ body {
     height: calc(100vh - 64px);
 }
 
-/* Sidesheet */
+/* ============================================
+   SIDESHEET - Style Guide
+   ============================================ */
+
 .sidesheet {
     position: fixed;
     top: 64px; /* account for header */
     right: 0;
     width: 40%;
     height: calc(100vh - 64px);
-    background: #ffffff;
-    border-left: 1px solid #e2e8f0;
-    box-shadow: -6px 0 16px rgba(0,0,0,0.08);
+    background: var(--color-white);
+    border-left: 1px solid var(--color-blue-50);
+    box-shadow: -6px 0 16px rgba(1, 5, 50, 0.08);
     display: flex;
     flex-direction: column;
     z-index: 1100;
 }
 
 .sidesheet-header {
-    padding: 16px 20px;
-    border-bottom: 1px solid #e5e7eb;
+    padding: var(--spacing-4) var(--spacing-6);
+    border-bottom: 1px solid var(--color-blue-50);
 }
 
 .sidesheet-title {
+    font-family: 'Roboto', sans-serif;
+    font-size: 20px;
     font-weight: 700;
-    color: #111827;
+    line-height: 28px;
+    color: var(--color-primary-blue);
 }
 
-.sidesheet-tabs { display:flex; gap:8px; padding: 8px 20px; border-bottom:1px solid #e5e7eb; }
-.tab-btn { border:none; background:#f3f4f6; padding:6px 10px; border-radius:8px; cursor:pointer; }
-.tab-btn.active { background:#2563eb; color:#fff; }
+.sidesheet-tabs { 
+    display: flex; 
+    gap: var(--spacing-2); 
+    padding: var(--spacing-2) var(--spacing-6); 
+    border-bottom: 1px solid var(--color-blue-50); 
+}
+
+.tab-btn { 
+    border: none; 
+    background: var(--color-gray-25); 
+    padding: 6px 10px; 
+    border-radius: 2px; 
+    cursor: pointer;
+    font-family: 'Roboto', sans-serif;
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--color-gray-700);
+    transition: all 0.2s ease;
+}
+
+.tab-btn:hover {
+    background: var(--color-blue-50);
+}
+
+.tab-btn.active { 
+    background: var(--color-primary-blue); 
+    color: var(--color-white); 
+}
 
 .sidesheet-body {
-    padding: 16px 20px;
+    padding: var(--spacing-4) var(--spacing-6);
     flex: 1;
     overflow-y: auto;
 }
 
 .sidesheet-footer {
-    padding: 12px 20px;
-    border-top: 1px solid #e5e7eb;
+    padding: var(--spacing-3) var(--spacing-6);
+    border-top: 1px solid var(--color-blue-50);
     display: flex;
     justify-content: space-between;
     align-items: center;
 }
 
 .sidesheet-footer .footer-left,
-.sidesheet-footer .footer-right { display: flex; gap: 8px; }
+.sidesheet-footer .footer-right { 
+    display: flex; 
+    gap: var(--spacing-2); 
+}
 
-.input-label {
+/* ============================================
+   INPUT FIELD STYLES - Style Guide
+   ============================================ */
+
+/* Input Container */
+.input-container {
+    display: flex;
+    flex-direction: column;
+    gap: 4px; /* 2px gap between elements */
+}
+
+/* Input Label */
+.input-label,
+label.input-label {
     display: block;
-    font-size: 12px;
-    color: #6b7280;
-    margin-bottom: 6px;
+    font-family: 'Roboto', sans-serif;
+    font-size: 14px;
+    font-weight: 400;
+    line-height: 20px;
+    color: var(--color-gray-900);
+    margin-bottom: 4px; /* 4px gap between label and input */
 }
 
-.text-input {
+.input-label .required {
+    color: var(--color-error-red);
+    font-weight: 500;
+    margin-left: 2px;
+}
+
+/* Default Input Field */
+.text-input,
+input.text-input,
+input[type="text"],
+input[type="email"],
+input[type="password"],
+input[type="number"],
+textarea {
     width: 100%;
-    padding: 8px 10px;
-    border: 1px solid #e5e7eb;
-    border-radius: 8px;
+    background: var(--color-white);
+    border: 1px solid var(--color-gray-500);
+    border-radius: 2px;
+    height: 40px; /* medium size */
+    padding: 12px var(--spacing-2);
+    font-family: 'Roboto', sans-serif;
+    font-size: 14px;
+    font-weight: 400;
+    line-height: 20px;
+    color: var(--color-gray-900);
     outline: none;
+    transition: all 0.2s ease;
 }
 
-.text-input:focus {
-    border-color: #2563eb;
-    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+textarea {
+    min-height: 40px;
+    resize: vertical;
 }
 
-.btn-secondary {
-    background: #f3f4f6;
-    color: #111827;
-    border: 1px solid #e5e7eb;
-    padding: 8px 12px;
-    border-radius: 8px;
-    cursor: pointer;
+.text-input::placeholder,
+input::placeholder,
+textarea::placeholder {
+    color: var(--color-gray-500);
 }
 
-.btn-danger {
-    background: #ef4444;
-    color: white;
+/* Input Field States */
+.text-input:focus,
+input:focus,
+textarea:focus {
+    border-color: var(--color-primary-blue);
+    box-shadow: 0 0 0 2px rgba(4, 18, 149, 0.1);
+}
+
+/* Error State */
+.text-input.error,
+input.error,
+textarea.error,
+.text-input:invalid:not(:placeholder-shown),
+input:invalid:not(:placeholder-shown) {
+    border-color: var(--color-error-red);
+}
+
+.input-error-message,
+.error-text {
+    font-family: 'Roboto', sans-serif;
+    font-size: 12px;
+    font-weight: 400;
+    line-height: 16px;
+    color: var(--color-error-red);
+    margin-top: 2px; /* 2px gap below input field */
+}
+
+/* Success State */
+.text-input.success,
+input.success,
+textarea.success {
+    border-color: var(--color-success-green);
+}
+
+.input-success-message {
+    font-family: 'Roboto', sans-serif;
+    font-size: 12px;
+    font-weight: 400;
+    line-height: 16px;
+    color: var(--color-success-green);
+    margin-top: 2px;
+}
+
+/* Warning State */
+.text-input.warning,
+input.warning,
+textarea.warning {
+    border-color: var(--color-warning-orange);
+}
+
+.input-warning-message {
+    font-family: 'Roboto', sans-serif;
+    font-size: 12px;
+    font-weight: 400;
+    line-height: 16px;
+    color: var(--color-warning-orange);
+    margin-top: 2px;
+}
+
+/* Disabled State */
+.text-input:disabled,
+input:disabled,
+textarea:disabled {
+    background: var(--color-gray-25);
+    border-color: var(--color-blue-50);
+    color: var(--color-gray-500);
+    cursor: not-allowed;
+}
+
+/* Input Caption/Helper Text */
+.input-caption {
+    font-family: 'Roboto', sans-serif;
+    font-size: 12px;
+    font-weight: 400;
+    line-height: 16px;
+    color: var(--color-gray-500);
+    margin-top: 2px;
+}
+
+/* Read-only text display (for read-only fields like ID) */
+.read-only-text {
+    font-family: 'Roboto', sans-serif;
+    font-size: 14px;
+    font-weight: 400;
+    line-height: 20px;
+    color: var(--color-gray-500); /* Light gray from style guide to indicate read-only */
+    padding: 12px var(--spacing-2);
+    margin-top: 4px; /* Match spacing of input field */
+    min-height: 20px; /* Match input field height */
+}
+
+/* Input with Icons */
+.input-with-icon {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.input-with-icon .input-icon {
+    position: absolute;
+    width: 20px;
+    height: 20px;
+    color: inherit;
+}
+
+.input-with-icon .input-icon-left {
+    left: var(--spacing-2);
+}
+
+.input-with-icon .input-icon-right {
+    right: var(--spacing-2);
+}
+
+.input-with-icon input {
+    padding-left: calc(var(--spacing-2) + 20px + var(--spacing-2));
+}
+
+.input-with-icon .input-icon-right + input {
+    padding-right: calc(var(--spacing-2) + 20px + var(--spacing-2));
+}
+
+/* ============================================
+   BUTTON STYLES - Style Guide
+   ============================================ */
+
+/* Primary Button */
+.btn-primary,
+button.btn-primary {
+    background: var(--color-primary-blue);
+    color: var(--color-white);
+    font-family: 'Roboto', sans-serif;
+    font-size: 14px;
+    font-weight: 500;
     border: none;
-    padding: 8px 12px;
-    border-radius: 8px;
+    border-radius: 2px;
+    height: 40px;
+    padding: 8px var(--spacing-3);
     cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: var(--spacing-2);
+    transition: all 0.2s ease;
 }
 
-.btn-danger:hover { background: #dc2626; }
-.btn-secondary:hover { background: #e5e7eb; }
+.btn-primary:hover {
+    background: #0515b8;
+    opacity: 0.9;
+}
 
-/* Form editor */
-.form-editor { display:flex; flex-direction: column; gap:16px; }
-.form-elements { width: 100%; }
-.form-properties { width: 100%; }
-.element-actions { display:flex; flex-wrap:wrap; gap:6px; margin:8px 0; }
-.element-icon-btn { width:32px; height:32px; padding:4px; font-size:16px; border-radius:6px; }
-.element-list { border:1px solid #e5e7eb; border-radius:8px; padding:6px; max-height:220px; overflow:auto; }
-.element-item { display:flex; gap:8px; padding:6px 8px; border-radius:6px; cursor:grab; }
-.element-item:hover { background:#f8fafc; }
-.element-item.selected { background:#eef2ff; }
-.element-type { font-weight:700; color:#2563eb; text-transform:capitalize; width:70px; }
-.element-label { color:#374151; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.btn-primary:active {
+    opacity: 0.8;
+}
+
+.btn-primary:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.btn-primary .icon {
+    width: 20px;
+    height: 20px;
+}
+
+/* Secondary Button */
+.btn-secondary,
+button.btn-secondary {
+    background: transparent;
+    color: var(--color-primary-blue);
+    font-family: 'Roboto', sans-serif;
+    font-size: 14px;
+    font-weight: 500;
+    border: 1px solid var(--color-primary-blue);
+    border-radius: 2px;
+    height: 40px;
+    padding: 8px var(--spacing-3);
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: var(--spacing-2);
+    transition: all 0.2s ease;
+}
+
+.btn-secondary:hover {
+    background: rgba(4, 18, 149, 0.05);
+}
+
+.btn-secondary:active {
+    background: rgba(4, 18, 149, 0.1);
+}
+
+.btn-secondary:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.btn-secondary .icon {
+    width: 20px;
+    height: 20px;
+}
+
+/* Tertiary Button */
+.btn-tertiary,
+button.btn-tertiary {
+    background: transparent;
+    color: var(--color-gray-700);
+    font-family: 'Roboto', sans-serif;
+    font-size: 14px;
+    font-weight: 500;
+    border: none;
+    border-radius: 2px;
+    height: 40px;
+    padding: 8px var(--spacing-3);
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: var(--spacing-2);
+    transition: all 0.2s ease;
+}
+
+.btn-tertiary:hover {
+    background: rgba(56, 58, 75, 0.05);
+}
+
+.btn-tertiary:active {
+    background: rgba(56, 58, 75, 0.1);
+}
+
+.btn-tertiary:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.btn-tertiary .icon {
+    width: 20px;
+    height: 20px;
+}
+
+/* Legacy button styles for compatibility */
+.btn-danger {
+    background: var(--color-error-red);
+    color: var(--color-white);
+    font-family: 'Roboto', sans-serif;
+    font-size: 14px;
+    font-weight: 500;
+    border: none;
+    border-radius: 2px;
+    height: 40px;
+    padding: 8px var(--spacing-3);
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.btn-danger:hover { 
+    background: #c51a00; 
+    opacity: 0.9;
+}
+
+/* Remove red background from delete buttons - make them transparent with just the icon */
+.btn-danger[title="Remove"] {
+    background: transparent !important;
+    color: var(--color-error-red);
+    border: none;
+    height: auto;
+    padding: 2px 6px;
+}
+
+.btn-danger[title="Remove"]:hover {
+    background: rgba(224, 30, 0, 0.1) !important;
+    opacity: 1;
+}
+
+/* ============================================
+   FORM GUIDELINES - Style Guide
+   ============================================ */
+
+/* Form Structure and Layout */
+.form-container {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-8); /* 40px between sections */
+}
+
+.form-section {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-4); /* 16px between section title and form field */
+}
+
+.form-section-title {
+    font-family: 'Roboto', sans-serif;
+    font-size: 20px;
+    font-weight: 700;
+    line-height: 28px;
+    color: var(--color-primary-blue);
+    margin-bottom: 4px; /* 4px between section title and description */
+}
+
+.form-section-description {
+    font-family: 'Roboto', sans-serif;
+    font-size: 16px;
+    font-weight: 400;
+    line-height: 24px;
+    color: var(--color-gray-900);
+    margin-bottom: var(--spacing-4); /* 16px between description and form field */
+}
+
+/* Form Field Spacing */
+.form-field {
+    margin-bottom: var(--spacing-6); /* 24px between form fields */
+}
+
+.form-field.horizontal {
+    display: flex;
+    gap: var(--spacing-4); /* 16px between form fields arranged side by side */
+    align-items: flex-start;
+}
+
+.form-field + .form-subsection {
+    margin-top: var(--spacing-6); /* 24px between form field and sub-section */
+}
+
+.form-field + .form-button {
+    margin-top: var(--spacing-6); /* 24px between form field and form button */
+}
+
+/* Checkbox and Radio Button Spacing */
+.checkbox-group,
+.radio-group {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-3); /* 12px between checkbox/radio buttons in a group */
+}
+
+.checkbox-item,
+.radio-item {
+    display: flex;
+    align-items: center;
+    gap: 4px; /* 4px between label and checkbox/radio button */
+}
+
+.checkbox-group + .form-field,
+.radio-group + .form-field {
+    margin-top: var(--spacing-6); /* 24px between checkbox/radio button and unrelated form field */
+}
+
+/* Dependent and Nested Field Spacing */
+.form-field-dependent {
+    margin-top: var(--spacing-2); /* 8px between form field and dependent form field */
+}
+
+.form-field-nested {
+    margin-left: var(--spacing-8); /* 32px left indentation for nested form fields */
+    margin-top: var(--spacing-2); /* 8px between parent form field and first nested form field */
+}
+
+/* Divider and Validation Spacing */
+.form-divider {
+    margin: var(--spacing-6) 0; /* 24px between divider and other form fields */
+    border: none;
+    border-top: 1px solid var(--color-blue-50);
+}
+
+.form-validation {
+    margin-top: var(--spacing-8); /* 40px between form field and form validation */
+    margin-bottom: var(--spacing-8); /* 32px minimum between form validation and bottom of screen */
+}
+
+/* Form Editor Styles */
+.form-editor { 
+    display: flex; 
+    flex-direction: column; 
+    gap: var(--spacing-4); 
+}
+
+.form-elements { 
+    width: 100%; 
+}
+
+.form-properties { 
+    width: 100%; 
+}
+
+.element-actions { 
+    display: flex; 
+    flex-wrap: wrap; 
+    gap: 6px; 
+    margin: var(--spacing-2) 0; 
+}
+
+.element-icon-btn { 
+    width: 32px; 
+    height: 32px; 
+    padding: 4px; 
+    font-size: 16px; 
+    border-radius: 2px; 
+    border: none !important; /* Remove borders from element buttons */
+}
+
+.element-list { 
+    border: 1px solid var(--color-blue-50); 
+    border-radius: 2px; 
+    padding: 6px; 
+    /* Removed max-height to allow dynamic resizing */
+    /* Overflow auto only when needed */
+    min-height: 60px;
+}
+
+.element-item { 
+    display: flex; 
+    gap: var(--spacing-2); 
+    padding: 6px var(--spacing-2); 
+    border-radius: 2px; 
+    cursor: grab; 
+}
+
+.element-item:hover { 
+    background: var(--color-gray-25); 
+}
+
+.element-item.selected { 
+    background: var(--color-blue-50); 
+}
+
+.element-type { 
+    font-weight: 700; 
+    color: var(--color-primary-blue); 
+    text-transform: capitalize; 
+    width: 70px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.element-type .material-icons {
+    font-size: 20px;
+    width: 20px;
+    height: 20px;
+    color: var(--color-primary-blue);
+}
+
+.element-label { 
+    color: var(--color-gray-900); 
+    overflow: hidden; 
+    text-overflow: ellipsis; 
+    white-space: nowrap; 
+}
+
 .row-drop-zone { 
-  margin-top: 8px;
-  border: 2px dashed #cbd5e1;
-  border-radius: 8px;
-  padding: 12px;
-  min-height: 60px;
-  background: #f8fafc;
+    margin-top: var(--spacing-2);
+    border: 2px dashed var(--color-blue-50);
+    border-radius: 2px;
+    padding: var(--spacing-3);
+    min-height: 60px;
+    background: var(--color-gray-25);
+    /* Allow dynamic resizing - no max-height */
+    display: flex;
+    flex-direction: column;
 }
-.row-drop-zone:hover { border-color: #2563eb; background: #eef2ff; }
+
+.row-drop-zone:hover { 
+    border-color: var(--color-primary-blue); 
+    background: var(--color-blue-50); 
+}
+
 .drop-zone-placeholder {
   text-align: center;
-  color: #94a3b8;
+    color: var(--color-gray-500);
   font-size: 12px;
-  padding: 8px;
+    padding: var(--spacing-2);
   font-style: italic;
 }
-.preview-card { border:1px solid #e5e7eb; border-radius:8px; padding:12px; background:#fff; }
-.preview-field { margin-bottom:10px; }
-.preview-label { font-weight:600; color:#111827; }
-.error-text { color:#dc2626; font-size:12px; margin-top:4px; }
+
+.preview-card { 
+    border: 1px solid var(--color-blue-50); 
+    border-radius: 2px; 
+    padding: var(--spacing-3); 
+    background: var(--color-white); 
+}
+
+.preview-field { 
+    margin-bottom: 10px; 
+}
+
+.preview-label { 
+    font-weight: 600; 
+    color: var(--color-gray-900); 
+}
+
+/* ============================================
+   MATERIAL ICONS - Style Guide
+   Single color Material Design icons with blue branding
+   ============================================ */
+
+/* Material Icons Base Styles */
+.material-icons {
+    font-family: 'Material Icons';
+    font-weight: normal;
+    font-style: normal;
+    font-size: 24px; /* Default size */
+    line-height: 1;
+    letter-spacing: normal;
+    text-transform: none;
+    display: inline-block;
+    white-space: nowrap;
+    word-wrap: normal;
+    direction: ltr;
+    -webkit-font-feature-settings: 'liga';
+    -webkit-font-smoothing: antialiased;
+    color: var(--color-primary-blue); /* Blue branding from style guide */
+}
+
+/* Navigation icons: 24px size */
+.node-menu-icon .material-icons {
+    font-size: 24px;
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Button icons: 20px size */
+.btn-primary .material-icons,
+.btn-secondary .material-icons,
+.btn-tertiary .material-icons,
+.element-icon-btn .material-icons {
+    font-size: 20px;
+    width: 20px;
+    height: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Secondary button icons use blue branding */
+.btn-secondary .material-icons {
+    color: var(--color-primary-blue);
+}
+
+/* Primary button icons should be white */
+.btn-primary .material-icons {
+    color: var(--color-white);
+}
+
+/* Tertiary button icons inherit gray color */
+.btn-tertiary .material-icons {
+    color: var(--color-gray-700);
+}
+
+/* Element type icons in lists */
+.element-type .material-icons {
+    font-size: 20px;
+    width: 20px;
+    height: 20px;
+    color: var(--color-primary-blue);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Element icon buttons in form editor */
+.element-icon-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 4px;
+    border: none !important; /* Remove borders from element buttons */
+}
+
+.element-icon-btn .material-icons {
+    font-size: 20px;
+    color: var(--color-primary-blue);
+}
+
+.element-icon-btn:hover .material-icons {
+    color: var(--color-primary-blue);
+    opacity: 0.9;
+}
+
+.element-icon-btn:hover {
+    background: rgba(4, 18, 149, 0.05);
+}
+
+/* Node menu icons with status-specific colors */
+.node-menu-icon.end-icon .material-icons {
+    color: var(--color-success-green);
+}
+
+.node-menu-icon.end-error-icon .material-icons {
+    color: var(--color-error-red);
+}
+
+.node-menu-icon.frontend-form-icon .material-icons {
+    color: var(--color-primary-blue);
+}
+
+.node-menu-icon.condition-icon .material-icons {
+    color: var(--color-warning-orange);
+}
+
+/* Update node-menu-icon to properly display Material Icons */
+.node-menu-icon {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-right: var(--spacing-3);
+}
+
+.node-menu-icon.end-icon {
+    background: transparent;
+    border: none;
+    color: var(--color-success-green);
+}
+
+.node-menu-icon.end-error-icon {
+    background: transparent;
+    border: none;
+    color: var(--color-error-red);
+}
+
+.node-menu-icon.frontend-form-icon {
+    background: var(--color-blue-50);
+    border: 2px solid var(--color-primary-blue);
+    border-radius: 2px;
+    color: var(--color-primary-blue);
+}
+
+.node-menu-icon.condition-icon {
+    background: transparent;
+    border: none;
+    color: var(--color-warning-orange);
+}
