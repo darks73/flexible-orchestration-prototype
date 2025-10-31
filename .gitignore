@@ -30,6 +30,9 @@ build/
 ehthumbs.db
 Thumbs.db
 
+# Windows Zone.Identifier files (alternate data streams)
+*:Zone.Identifier
+
 # Logs
 logs
 *.log
