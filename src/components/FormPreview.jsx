@@ -50,6 +50,13 @@ export default function FormPreview({ schema, onSubmit }) {
   };
 
   const renderEl = (el) => {
+    if (el.type === 'row') {
+      return (
+        <div key={el.id} className="preview-row" style={{ display: 'flex', gap: 8 }}>
+          {(el.children || []).map((child) => renderEl(child))}
+        </div>
+      );
+    }
     const common = {
       id: el.id,
       name: el.id,
