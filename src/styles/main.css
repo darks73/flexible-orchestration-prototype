@@ -537,18 +537,7 @@ h4, .h4 {
     background-color: var(--color-gray-25);
 }
 
-.node-menu-icon {
-    width: 24px;
-    height: 24px;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 10px;
-    font-weight: 600;
-    margin-right: 12px;
-    color: white;
-}
+/* Old node-menu-icon definition removed - using Material Icons instead */
 
 .node-menu-icon.end-icon {
     background: #dcfce7;
@@ -1272,7 +1261,7 @@ button.btn-tertiary {
 /* Material Icons Base Styles */
 .material-icons {
     font-family: 'Material Icons';
-    font-weight: normal;
+    font-weight: 400;
     font-style: normal;
     font-size: 24px; /* Default size */
     line-height: 1;
@@ -1282,19 +1271,32 @@ button.btn-tertiary {
     white-space: nowrap;
     word-wrap: normal;
     direction: ltr;
+    font-feature-settings: 'liga';
     -webkit-font-feature-settings: 'liga';
     -webkit-font-smoothing: antialiased;
+    font-variant: normal;
+    text-rendering: optimizeLegibility;
+    speak: none;
     color: var(--color-primary-blue); /* Blue branding from style guide */
+    /* Ensure icons render as glyphs, not text */
+    font-display: block;
 }
 
 /* Navigation icons: 24px size */
 .node-menu-icon .material-icons {
-    font-size: 24px;
+    font-family: 'Material Icons' !important;
+    font-size: 24px !important;
+    font-weight: 400 !important;
     width: 24px;
     height: 24px;
-    display: flex;
+    display: inline-flex;
     align-items: center;
     justify-content: center;
+    line-height: 24px;
+    /* Ensure Material Icons font is used */
+    font-style: normal !important;
+    letter-spacing: normal !important;
+    text-transform: none !important;
 }
 
 /* Button icons: 20px size */
@@ -1305,9 +1307,10 @@ button.btn-tertiary {
     font-size: 20px;
     width: 20px;
     height: 20px;
-    display: flex;
+    display: inline-flex;
     align-items: center;
     justify-content: center;
+    line-height: 20px;
 }
 
 /* Secondary button icons use blue branding */
@@ -1385,6 +1388,10 @@ button.btn-tertiary {
     align-items: center;
     justify-content: center;
     margin-right: var(--spacing-3);
+    /* Remove any font inheritance that might interfere with Material Icons */
+    font-size: inherit;
+    font-weight: inherit;
+    font-family: inherit;
 }
 
 .node-menu-icon.end-icon {
