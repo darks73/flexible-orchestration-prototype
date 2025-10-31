@@ -21,12 +21,27 @@ import { loadFormSchema, saveFormSchema, createEmptySchema } from '../utils/form
 const StartNode = ({ data, selected }) => (
   <div className={`journey-start-node ${selected ? 'selected' : ''}`}>
     <div>Start</div>
+    <span className="material-icons" style={{ 
+      position: 'absolute',
+      top: '-8px',
+      right: '-8px',
+      fontSize: '16px',
+      color: '#041295', // var(--color-primary-blue)
+      background: 'white',
+      borderRadius: '50%',
+      width: '20px',
+      height: '20px',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      boxShadow: '0px 2px 4px 0px rgba(1, 5, 50, 0.04), 0px 4px 5px 0px rgba(1, 5, 50, 0.04), 0px 1px 10px 0px rgba(1, 5, 50, 0.08)'
+    }}>lock_outline</span>
     <Handle
       type="source"
       position={Position.Right}
       id="right"
       style={{ 
-        background: '#2563eb',
+        background: '#041295', // var(--color-primary-blue)
         border: '2px solid white',
         width: '8px',
         height: '8px'
@@ -45,7 +60,7 @@ const FrontendFormNode = ({ data, selected }) => (
       position={Position.Left}
       id="input"
       style={{ 
-        background: '#2563eb',
+        background: '#041295', // var(--color-primary-blue)
         border: '2px solid white',
         width: '8px',
         height: '8px',
@@ -60,7 +75,7 @@ const FrontendFormNode = ({ data, selected }) => (
       position={Position.Right}
       id="success"
       style={{ 
-        background: '#2563eb',
+        background: '#00BBDD', // var(--color-success-green)
         border: '2px solid white',
         width: '8px',
         height: '8px',
@@ -76,7 +91,7 @@ const FrontendFormNode = ({ data, selected }) => (
       position={Position.Right}
       id="error"
       style={{ 
-        background: '#2563eb',
+        background: '#E01E00', // var(--color-error-red)
         border: '2px solid white',
         width: '8px',
         height: '8px',
@@ -97,7 +112,7 @@ const SuccessEndNode = ({ data, selected }) => (
       position={Position.Left}
       id="left"
       style={{ 
-        background: '#2563eb',
+        background: '#041295', // var(--color-primary-blue)
         border: '2px solid white',
         width: '8px',
         height: '8px'
@@ -114,7 +129,7 @@ const ErrorEndNode = ({ data, selected }) => (
       position={Position.Left}
       id="left"
       style={{ 
-        background: '#2563eb',
+        background: '#041295', // var(--color-primary-blue)
         border: '2px solid white',
         width: '8px',
         height: '8px'
@@ -133,7 +148,7 @@ const ConditionNode = ({ data, selected }) => (
       position={Position.Left}
       id="input"
       style={{ 
-        background: '#2563eb',
+        background: '#041295', // var(--color-primary-blue)
         border: '2px solid white',
         width: '8px',
         height: '8px',
@@ -147,7 +162,7 @@ const ConditionNode = ({ data, selected }) => (
       position={Position.Top}
       id="yes"
       style={{ 
-        background: '#059669',
+        background: '#00BBDD', // var(--color-success-green)
         border: '2px solid white',
         width: '8px',
         height: '8px',
@@ -161,7 +176,7 @@ const ConditionNode = ({ data, selected }) => (
       position={Position.Bottom}
       id="no"
       style={{ 
-        background: '#dc2626',
+        background: '#E01E00', // var(--color-error-red)
         border: '2px solid white',
         width: '8px',
         height: '8px',
@@ -211,12 +226,12 @@ const loadJourney = () => {
           targetHandle: 'left',
           type: 'default',
           style: { 
-            stroke: '#2563eb', 
+            stroke: '#041295', // var(--color-primary-blue)
             strokeWidth: 2 
           },
           markerEnd: {
             type: 'arrowclosed',
-            color: '#2563eb',
+            color: '#041295', // var(--color-primary-blue)
             width: 20,
             height: 20,
           },
@@ -251,12 +266,12 @@ const loadJourney = () => {
           targetHandle: 'left',
           type: 'default',
           style: { 
-            stroke: '#2563eb', 
+            stroke: '#041295', // var(--color-primary-blue)
             strokeWidth: 2 
           },
           markerEnd: {
             type: 'arrowclosed',
-            color: '#2563eb',
+            color: '#041295', // var(--color-primary-blue)
             width: 20,
             height: 20,
           },
@@ -346,6 +361,67 @@ function InnerCanvas() {
     }, 150);
     return () => clearTimeout(timeout);
   }, [formSchema, selectedFrontendForm?.id, setNodes]);
+
+  // Update marker colors for selected edges to use primary blue highlight
+  // Track selected edge IDs to detect selection changes
+  const selectedEdgeIdsRef = React.useRef(new Set());
+  React.useEffect(() => {
+    const currentSelectedIds = new Set(edges.filter(e => e.selected).map(e => e.id));
+    const prevSelectedIds = selectedEdgeIdsRef.current;
+    
+    // Check if selection actually changed
+    const selectionChanged = 
+      currentSelectedIds.size !== prevSelectedIds.size ||
+      [...currentSelectedIds].some(id => !prevSelectedIds.has(id)) ||
+      [...prevSelectedIds].some(id => !currentSelectedIds.has(id));
+    
+    if (!selectionChanged && edges.length === 0) return;
+    
+    selectedEdgeIdsRef.current = currentSelectedIds;
+    
+    setEdges((eds) => {
+      const updated = eds.map(edge => {
+        if (edge.selected && edge.markerEnd) {
+          // Selected edges use primary blue for both edge path and arrow head
+          const selectedMarkerColor = '#041295'; // Primary blue for selected state
+          if (edge.markerEnd?.color !== selectedMarkerColor) {
+            return {
+              ...edge,
+              markerEnd: {
+                ...edge.markerEnd,
+                color: selectedMarkerColor,
+              },
+            };
+          }
+        } else if (!edge.selected && edge.markerEnd) {
+          // Restore original colors for non-selected edges
+          let originalColor = '#041295'; // Default primary blue
+          if (edge.sourceHandle === 'success' || edge.sourceHandle === 'yes') {
+            originalColor = '#00BBDD'; // Success green
+          } else if (edge.sourceHandle === 'error' || edge.sourceHandle === 'no') {
+            originalColor = '#F5D4D4'; // Toned down error color
+          }
+          
+          if (edge.markerEnd?.color !== originalColor) {
+            return {
+              ...edge,
+              markerEnd: {
+                ...edge.markerEnd,
+                color: originalColor,
+              },
+            };
+          }
+        }
+        return edge;
+      });
+      // Only update if there are actual changes to avoid infinite loop
+      const hasChanges = updated.some((edge, index) => {
+        const original = eds[index];
+        return original && edge.markerEnd?.color !== original.markerEnd?.color;
+      });
+      return hasChanges ? updated : eds;
+    });
+  }, [edges.length, edges.map(e => `${e.id}:${e.selected}`).join(','), setEdges]);
 
   // persist journey to localStorage (debounced)
   const saveTimeoutRef = React.useRef(null);
@@ -689,19 +765,19 @@ function InnerCanvas() {
       }
       
       // Determine edge color and label based on source handle
-      let edgeColor = '#2563eb'; // Default blue
+      let edgeColor = '#041295'; // Default blue - var(--color-primary-blue)
       let edgeLabel = '';
       if (params.sourceHandle === 'yes') {
-        edgeColor = '#059669'; // Green for YES
+        edgeColor = '#00BBDD'; // Green for YES - var(--color-success-green)
         edgeLabel = 'YES';
       } else if (params.sourceHandle === 'no') {
-        edgeColor = '#dc2626'; // Red for NO
+        edgeColor = '#F5D4D4'; // Toned down error color - approximates rgba(224, 30, 0, 0.1) background tone of error node
         edgeLabel = 'NO';
       } else if (params.sourceHandle === 'success') {
-        edgeColor = '#059669';
+        edgeColor = '#00BBDD'; // var(--color-success-green)
         edgeLabel = 'success';
       } else if (params.sourceHandle === 'error') {
-        edgeColor = '#dc2626';
+        edgeColor = '#F5D4D4'; // Toned down error color - approximates rgba(224, 30, 0, 0.1) background tone of error node
         edgeLabel = 'error';
       }
       
@@ -842,12 +918,12 @@ function InnerCanvas() {
         panOnDrag={true}
         zoomOnScroll={true}
         defaultViewport={{ x: 0, y: 0, zoom: 1 }}
-        connectionLineStyle={{ stroke: '#2563eb', strokeWidth: 2 }}
+        connectionLineStyle={{ stroke: '#041295', strokeWidth: 2 }} // var(--color-primary-blue)
         defaultEdgeOptions={{
-          style: { stroke: '#2563eb', strokeWidth: 2 },
+          style: { stroke: '#041295', strokeWidth: 2 }, // var(--color-primary-blue)
           markerEnd: {
             type: 'arrowclosed',
-            color: '#2563eb',
+            color: '#041295', // var(--color-primary-blue)
             width: 20,
             height: 20,
           },

@@ -200,60 +200,52 @@ h4, .h4 {
     border-radius: 2px;
 }
 
-/* Custom Node Styles */
+/* Custom Node Styles - Style Guide */
 .journey-start-node {
     width: 60px;
     height: 60px;
     border-radius: 50%;
-    background: #e2e8f0;
-    border: 2px solid #cbd5e1;
+    background: var(--color-gray-25);
+    border: 2px solid var(--color-blue-50);
     display: flex;
     align-items: center;
     justify-content: center;
-    color: #64748b;
-    font-weight: 600;
+    color: var(--color-gray-700);
+    font-family: 'Roboto', sans-serif;
+    font-weight: 500;
     font-size: 12px;
     text-align: center;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    box-shadow: 0px 2px 4px 0px rgba(1, 5, 50, 0.04), 
+                0px 4px 5px 0px rgba(1, 5, 50, 0.04), 
+                0px 1px 10px 0px rgba(1, 5, 50, 0.08);
     position: relative;
 }
 
-.journey-start-node::after {
-    content: "🔒";
-    position: absolute;
-    top: -8px;
-    right: -8px;
-    font-size: 12px;
-    background: white;
-    border-radius: 50%;
-    width: 20px;
-    height: 20px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-}
+/* Lock icon is now rendered via JSX Material Icons, not CSS */
 
 .journey-end-node {
     width: 60px;
     height: 60px;
     border-radius: 50%;
-    background: #dcfce7;
-    border: 2px solid #bbf7d0;
+    background: rgba(0, 187, 221, 0.1); /* Light success green background */
+    border: 2px solid var(--color-success-green);
     display: flex;
     align-items: center;
     justify-content: center;
-    color: #166534;
-    font-weight: 600;
+    color: var(--color-success-green);
+    font-family: 'Roboto', sans-serif;
+    font-weight: 500;
     font-size: 12px;
     text-align: center;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    box-shadow: 0px 2px 4px 0px rgba(1, 5, 50, 0.04), 
+                0px 4px 5px 0px rgba(1, 5, 50, 0.04), 
+                0px 1px 10px 0px rgba(1, 5, 50, 0.08);
 }
 
 .journey-end-node.error {
-    background: #fef2f2;
-    border-color: #fecaca;
-    color: #dc2626;
+    background: rgba(224, 30, 0, 0.1); /* Light error red background */
+    border-color: var(--color-error-red);
+    color: var(--color-error-red);
 }
 
 .journey-condition-node {
@@ -271,19 +263,24 @@ h4, .h4 {
 .condition-diamond {
     width: 100%;
     height: 100%;
-    background: #fef3c7;
-    border: 2px solid #f59e0b;
+    /* Default state now matches previous selected state - looks great */
+    background: var(--color-blue-50); /* Light blue background */
+    border: 2px solid var(--color-primary-blue); /* Primary blue border */
     clip-path: polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%);
     display: flex;
     align-items: center;
     justify-content: center;
     transition: all 0.2s ease;
     position: relative;
+    box-shadow: 0px 2px 4px 0px rgba(1, 5, 50, 0.04), 
+                0px 4px 5px 0px rgba(1, 5, 50, 0.04), 
+                0px 1px 10px 0px rgba(1, 5, 50, 0.08);
 }
 
 .condition-content {
-    color: #92400e;
-    font-weight: 600;
+    color: var(--color-primary-blue); /* Primary blue text */
+    font-family: 'Roboto', sans-serif;
+    font-weight: 500;
     font-size: 12px;
     text-align: center;
     line-height: 1.2;
@@ -293,45 +290,63 @@ h4, .h4 {
     transform: scale(1.05);
 }
 
+/* Selected state uses light blue highlight - complementary to primary blue */
 .journey-condition-node.selected .condition-diamond {
-    background: rgba(255, 0, 0, 0.1) !important;
+    background: rgba(0, 187, 221, 0.15) !important; /* Light blue tint for selected state */
+    border-color: var(--color-primary-blue);
+    box-shadow: 0px 2px 4px 0px rgba(1, 5, 50, 0.04), 
+                0px 4px 5px 0px rgba(1, 5, 50, 0.04), 
+                0px 1px 10px 0px rgba(1, 5, 50, 0.08),
+                0 0 0 4px rgba(0, 187, 221, 0.2); /* Light blue glow for selected */
 }
 
-/* Frontend Form Node (rounded square) */
+.journey-condition-node.selected .condition-content {
+    color: var(--color-primary-blue); /* Keep primary blue text when selected */
+}
+
+/* Frontend Form Node (rounded square) - Style Guide */
 .frontend-form-node {
     width: 160px;
     min-height: 80px;
-    background: #eef2ff;
-    border: 2px solid #c7d2fe;
-    border-radius: 12px;
+    background: var(--color-blue-50);
+    border: 2px solid var(--color-primary-blue);
+    border-radius: 8px; /* Slightly rounded corners */
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    padding: 12px;
-    color: #3730a3;
+    padding: var(--spacing-3);
+    color: var(--color-primary-blue);
     text-align: center;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
+    box-shadow: 0px 2px 4px 0px rgba(1, 5, 50, 0.04), 
+                0px 4px 5px 0px rgba(1, 5, 50, 0.04), 
+                0px 1px 10px 0px rgba(1, 5, 50, 0.08);
     position: relative;
 }
 
 .frontend-form-node .frontend-form-title {
+    font-family: 'Roboto', sans-serif;
     font-weight: 700;
     font-size: 12px;
     margin-bottom: 4px;
+    color: var(--color-primary-blue);
 }
 
 .frontend-form-node .frontend-form-subtitle {
-    font-weight: 600;
+    font-family: 'Roboto', sans-serif;
+    font-weight: 500;
     font-size: 11px;
-    color: #4f46e5;
+    color: var(--color-gray-700);
 }
 
 .frontend-form-node.selected {
-    outline: 2px solid #dc2626;
+    outline: 2px solid var(--color-primary-blue);
     outline-offset: 2px;
     transform: scale(1.05);
-    box-shadow: 0 0 0 4px rgba(220, 38, 38, 0.12);
+    box-shadow: 0px 2px 4px 0px rgba(1, 5, 50, 0.04), 
+                0px 4px 5px 0px rgba(1, 5, 50, 0.04), 
+                0px 1px 10px 0px rgba(1, 5, 50, 0.08),
+                0 0 0 4px rgba(4, 18, 149, 0.12);
 }
 
 /* Port badges for Frontend - Form */
@@ -339,29 +354,32 @@ h4, .h4 {
     position: absolute;
     right: -2px;
     transform: translateY(-50%);
-    background: #ffffff;
+    background: var(--color-white);
     padding: 0px 5px;
+    font-family: 'Roboto', sans-serif;
     font-size: 8px;
     font-weight: 700;
-    border-radius: 8px;
+    border-radius: 2px; /* Style guide border radius */
     line-height: 1;
     white-space: nowrap;
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
-    border: 1px solid #e5e7eb;
+    box-shadow: 0px 2px 4px 0px rgba(1, 5, 50, 0.04), 
+                0px 4px 5px 0px rgba(1, 5, 50, 0.04), 
+                0px 1px 10px 0px rgba(1, 5, 50, 0.08);
+    border: 1px solid var(--color-blue-50);
     pointer-events: none; /* allow dragging via enlarged invisible handle underneath */
     z-index: 2;
 }
 
 .frontend-form-node .port-badge.success {
-    color: #065f46;
-    border-color: #a7f3d0;
-    background: #ecfdf5;
+    color: var(--color-success-green);
+    border-color: var(--color-success-green);
+    background: rgba(0, 187, 221, 0.1);
 }
 
 .frontend-form-node .port-badge.error {
-    color: #991b1b;
-    border-color: #fecaca;
-    background: #fef2f2;
+    color: var(--color-error-red);
+    border-color: var(--color-error-red);
+    background: rgba(224, 30, 0, 0.1);
 }
 
 /* Visible dots next to badges */
@@ -371,22 +389,14 @@ h4, .h4 {
     width: 8px;
     height: 8px;
     border-radius: 50%;
-    background: #2563eb;
-    border: 2px solid #ffffff;
+    background: var(--color-primary-blue);
+    border: 2px solid var(--color-white);
     transform: translateY(-50%);
     z-index: 3;
-    box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+    box-shadow: 0px 2px 4px 0px rgba(1, 5, 50, 0.04);
 }
 
-/* Menu icon for Frontend - Form */
-.node-menu-icon.frontend-form-icon {
-    background: #eef2ff;
-    color: #3730a3;
-    border: 2px solid #c7d2fe;
-    border-radius: 8px;
-    width: 24px;
-    height: 24px;
-}
+/* Menu icon for Frontend - Form - removed old definition, using style guide version below */
 
 /* Canvas Background */
 .react-flow__background {
@@ -400,7 +410,7 @@ h4, .h4 {
 }
 
 .react-flow__edge.selected .react-flow__edge-path {
-    stroke: var(--color-error-red) !important;
+    stroke: var(--color-primary-blue) !important; /* Primary blue for selected edges */
     stroke-width: 4 !important;
 }
 
@@ -410,8 +420,34 @@ h4, .h4 {
 }
 
 .react-flow__edge.selected {
-    outline: 2px solid #dc2626;
+    outline: 2px solid var(--color-primary-blue);
     outline-offset: 2px;
+}
+
+/* Selected edge markers (arrow heads) - match edge color */
+.react-flow__edge.selected marker path,
+.react-flow__edge.selected svg marker path,
+.react-flow__edge.selected svg defs marker path {
+    fill: var(--color-primary-blue) !important;
+    stroke: var(--color-primary-blue) !important;
+}
+
+/* Global marker styling for selected edges - React Flow creates markers in SVG defs */
+.react-flow__edge.selected svg defs marker path,
+.react-flow svg defs marker[id*="selected"] path {
+    fill: var(--color-primary-blue) !important;
+    stroke: var(--color-primary-blue) !important;
+}
+
+/* Alternative selector for React Flow markers - target by marker-end reference */
+.react-flow__edge.selected .react-flow__edge-path[marker-end] {
+    marker-end-color: var(--color-primary-blue);
+}
+
+/* Ensure arrow heads match selected edge color */
+.react-flow__edge.selected .react-flow__edge-path + * path,
+.react-flow__edge.selected svg[marker-end] marker path {
+    fill: var(--color-primary-blue) !important;
 }
 
 /* Handle Styles */
@@ -455,10 +491,13 @@ h4, .h4 {
 
 .journey-start-node.selected,
 .journey-end-node.selected {
-    outline: 2px solid #dc2626;
+    outline: 2px solid var(--color-primary-blue);
     outline-offset: 2px;
     transform: scale(1.05);
-    box-shadow: 0 0 0 4px rgba(220, 38, 38, 0.2);
+    box-shadow: 0px 2px 4px 0px rgba(1, 5, 50, 0.04), 
+                0px 4px 5px 0px rgba(1, 5, 50, 0.04), 
+                0px 1px 10px 0px rgba(1, 5, 50, 0.08),
+                0 0 0 4px rgba(4, 18, 149, 0.12);
 }
 
 /* Animation */
