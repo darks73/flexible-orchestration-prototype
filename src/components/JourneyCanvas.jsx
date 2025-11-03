@@ -336,7 +336,7 @@ const CaseConditionNode = ({ data, selected }) => {
         const topPercent = baseOffset + (idx * (range / totalOutputs));
         return (
           <Handle
-            key={`condition-${idx}`}
+            key={condition.id || `condition-${idx}`}
             type="source"
             position={Position.Right}
             id={`case-${idx}`}
@@ -404,7 +404,7 @@ const SwitchNode = ({ data, selected }) => {
         const topPercent = baseOffset + (idx * (range / totalOutputs));
         return (
           <Handle
-            key={`case-${idx}`}
+            key={caseItem.id || `switch-${idx}`}
             type="source"
             position={Position.Right}
             id={`switch-${idx}`}
@@ -700,6 +700,12 @@ function InnerCanvas() {
           const sourceNode = nodes.find(n => n.id === edge.source);
           const caseItem = sourceNode?.data?.cases?.[caseIndex];
           const newLabel = caseItem ? `${caseItem.value}` : `case ${caseIndex}`;
+          if (edge.label !== newLabel) {
+            return { ...edge, label: newLabel };
+          }
+        } else if (edge.sourceHandle === 'default') {
+          const sourceNode = nodes.find(n => n.id === edge.source);
+          const newLabel = sourceNode?.data?.defaultLabel || 'default';
           if (edge.label !== newLabel) {
             return { ...edge, label: newLabel };
           }
@@ -1485,6 +1491,15 @@ function InnerCanvas() {
         }
       }
       
+      // All source handles can only have one outgoing connection
+      const existingConnectionOnHandle = edges.some(edge => 
+        edge.source === params.source && edge.sourceHandle === params.sourceHandle
+      );
+      if (existingConnectionOnHandle) {
+        alert('This connection handler already has an outgoing connection. Remove the existing connection first.');
+        return;
+      }
+      
       // Determine edge color and label based on source handle
       let edgeColor = '#041295'; // Default blue - var(--color-primary-blue)
       let edgeLabel = '';
@@ -1525,7 +1540,8 @@ function InnerCanvas() {
         }
       } else if (params.sourceHandle === 'default') {
         edgeColor = '#9E9E9E'; // Gray for default
-        edgeLabel = 'default';
+        const sourceNode = nodes.find(n => n.id === params.source);
+        edgeLabel = sourceNode?.data?.defaultLabel || 'default';
       }
       
       // Create the new edge with arrow styling
@@ -1595,6 +1611,17 @@ function InnerCanvas() {
         }
       }
 
+      // All source handles can only have one outgoing connection (excluding the current edge being updated)
+      const existingConnectionOnHandle = edges.some(edge => 
+        edge.source === newConnection.source && 
+        edge.sourceHandle === newConnection.sourceHandle &&
+        edge.id !== oldEdge.id
+      );
+      if (existingConnectionOnHandle) {
+        alert('This connection handler already has an outgoing connection. Remove the existing connection first.');
+        return;
+      }
+
       // Determine edge color and label based on source handle
       let edgeColor = '#041295'; // Default blue - var(--color-primary-blue)
       let edgeLabel = '';
@@ -1635,7 +1662,8 @@ function InnerCanvas() {
         }
       } else if (newConnection.sourceHandle === 'default') {
         edgeColor = '#9E9E9E'; // Gray for default
-        edgeLabel = 'default';
+        const sourceNode = nodes.find(n => n.id === newConnection.source);
+        edgeLabel = sourceNode?.data?.defaultLabel || 'default';
       }
 
       // Update the edge with new connection, preserving some properties
@@ -2215,6 +2243,16 @@ function InnerCanvas() {
                   value={selectedSwitchNode.data?.expression || ''}
                   onChange={(e) => updateSwitchProperty('expression', e.target.value)}
                   placeholder="e.g., ${httpResponse.statusCode} or ${myVariable}"
+                />
+                <div style={{ height: '12px' }} />
+                <label className="input-label" htmlFor="switch-default-label">Default Path Label</label>
+                <input
+                  id="switch-default-label"
+                  className="text-input"
+                  type="text"
+                  value={selectedSwitchNode.data?.defaultLabel || 'default'}
+                  onChange={(e) => updateSwitchProperty('defaultLabel', e.target.value)}
+                  placeholder="default"
                 />
                 <div style={{ height: '12px' }} />
                 <div style={{ fontSize: '12px', color: 'var(--color-gray-600)', backgroundColor: 'var(--color-gray-50)', padding: '12px', borderRadius: '4px' }}>
