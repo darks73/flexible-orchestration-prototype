@@ -439,6 +439,46 @@ const SwitchNode = ({ data, selected }) => {
   );
 };
 
+const ContextOperationNode = ({ data, selected }) => (
+  <div className={`frontend-form-node ${selected ? 'selected' : ''}`}>
+    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+      <span className="material-icons" style={{ fontSize: '20px', color: '#041295' }}>settings</span>
+      <div className="frontend-form-title">{data.label || 'Context Operation'}</div>
+    </div>
+    <div className="frontend-form-subtitle">Operation</div>
+    {/* Input */}
+    <Handle
+      type="target"
+      position={Position.Left}
+      id="input"
+      style={{ 
+        background: '#041295', // var(--color-primary-blue)
+        border: '2px solid white',
+        width: '8px',
+        height: '8px',
+        left: '-4px',
+        top: '50%',
+        transform: 'translateY(-50%)'
+      }}
+    />
+    {/* Output */}
+    <Handle
+      type="source"
+      position={Position.Right}
+      id="output"
+      style={{ 
+        background: '#041295', // var(--color-primary-blue)
+        border: '2px solid white',
+        width: '8px',
+        height: '8px',
+        right: '-4px',
+        top: '50%',
+        transform: 'translateY(-50%)'
+      }}
+    />
+  </div>
+);
+
 // Node types configuration
 const nodeTypes = {
   start: StartNode,
@@ -447,6 +487,7 @@ const nodeTypes = {
   condition: ConditionNode,
   caseCondition: CaseConditionNode,
   switch: SwitchNode,
+  contextOperation: ContextOperationNode,
   frontendForm: FrontendFormNode,
   httpRequest: HttpBackendNode,
   jsonParser: JsonParserNode,
@@ -543,6 +584,7 @@ function InnerCanvas() {
   const [activeConditionNodeId, setActiveConditionNodeId] = useState(null);
   const [activeCaseConditionNodeId, setActiveCaseConditionNodeId] = useState(null);
   const [activeSwitchNodeId, setActiveSwitchNodeId] = useState(null);
+  const [activeContextOperationNodeId, setActiveContextOperationNodeId] = useState(null);
   const reactFlowInstance = useReactFlow();
   const canvasRef = useRef(null);
   const [activeTab, setActiveTab] = useState('details');
@@ -551,6 +593,7 @@ function InnerCanvas() {
   const [activeConditionTab, setActiveConditionTab] = useState('details');
   const [activeCaseConditionTab, setActiveCaseConditionTab] = useState('details');
   const [activeSwitchTab, setActiveSwitchTab] = useState('details');
+  const [activeContextOperationTab, setActiveContextOperationTab] = useState('details');
   const [formSchema, setFormSchema] = useState(null);
   const [selectedElementIndex, setSelectedElementIndex] = useState(null);
   
@@ -560,6 +603,7 @@ function InnerCanvas() {
   const selectedConditionNode = nodes.find(n => n.id === activeConditionNodeId);
   const selectedCaseConditionNode = nodes.find(n => n.id === activeCaseConditionNodeId);
   const selectedSwitchNode = nodes.find(n => n.id === activeSwitchNodeId);
+  const selectedContextOperationNode = nodes.find(n => n.id === activeContextOperationNodeId);
 
   // hydrate schema when selection changes
   React.useEffect(() => {
@@ -613,6 +657,14 @@ function InnerCanvas() {
     const savedTab = localStorage.getItem(`sidesheetTab:${selectedSwitchNode.id}`);
     setActiveSwitchTab(savedTab === 'cases' ? 'cases' : 'details');
   }, [selectedSwitchNode?.id]);
+
+  // hydrate Context Operation node tab when selection changes
+  React.useEffect(() => {
+    if (!selectedContextOperationNode) return;
+    // restore active tab from localStorage
+    const savedTab = localStorage.getItem(`sidesheetTab:${selectedContextOperationNode.id}`);
+    setActiveContextOperationTab(savedTab === 'operations' ? 'operations' : 'details');
+  }, [selectedContextOperationNode?.id]);
 
   // Update edge labels when case condition data changes
   React.useEffect(() => {
@@ -962,6 +1014,7 @@ function InnerCanvas() {
     setActiveConditionNodeId(null);
     setActiveCaseConditionNodeId(null);
     setActiveSwitchNodeId(null);
+    setActiveContextOperationNodeId(null);
   }, [setNodes]);
 
   const deleteSelectedFrontendForm = useCallback(() => {
@@ -1143,6 +1196,66 @@ function InnerCanvas() {
       return node;
     }));
   }, [activeSwitchNodeId, setNodes]);
+
+  // Update handlers for Context Operation node
+  const deleteSelectedContextOperationNode = useCallback(() => {
+    const nodeId = activeContextOperationNodeId;
+    if (!nodeId) return;
+    // Remove node and connected edges
+    setNodes((nds) => nds.filter(n => n.id !== nodeId));
+    setEdges((eds) => eds.filter(e => e.source !== nodeId && e.target !== nodeId));
+    setSelectedElements([]);
+    setActiveContextOperationNodeId(null);
+  }, [activeContextOperationNodeId, setNodes, setEdges]);
+
+  const updateContextOperationProperty = useCallback((property, value) => {
+    setNodes((nds) => nds.map(node => {
+      if (node.id === activeContextOperationNodeId) {
+        return { ...node, data: { ...node.data, [property]: value } };
+      }
+      return node;
+    }));
+  }, [activeContextOperationNodeId, setNodes]);
+
+  const addContextOperation = useCallback(() => {
+    setNodes((nds) => nds.map(node => {
+      if (node.id === activeContextOperationNodeId) {
+        const operations = [...(node.data?.operations || [])];
+        operations.push({
+          id: `context-op-${Date.now()}`,
+          variable: '',
+          operation: 'set',
+          value: '',
+        });
+        return { ...node, data: { ...node.data, operations } };
+      }
+      return node;
+    }));
+  }, [activeContextOperationNodeId, setNodes]);
+
+  const removeContextOperation = useCallback((index) => {
+    setNodes((nds) => nds.map(node => {
+      if (node.id === activeContextOperationNodeId) {
+        const operations = [...(node.data?.operations || [])];
+        operations.splice(index, 1);
+        return { ...node, data: { ...node.data, operations } };
+      }
+      return node;
+    }));
+  }, [activeContextOperationNodeId, setNodes]);
+
+  const updateContextOperation = useCallback((index, field, value) => {
+    setNodes((nds) => nds.map(node => {
+      if (node.id === activeContextOperationNodeId) {
+        const operations = [...(node.data?.operations || [])];
+        if (operations[index]) {
+          operations[index] = { ...operations[index], [field]: value };
+        }
+        return { ...node, data: { ...node.data, operations } };
+      }
+      return node;
+    }));
+  }, [activeContextOperationNodeId, setNodes]);
 
   // Editor operations
   const genGuid = () => 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
@@ -1351,6 +1464,7 @@ function InnerCanvas() {
     if (nodeType === 'condition') label = 'Simple Condition';
     if (nodeType === 'caseCondition') label = 'Multiple Conditions';
     if (nodeType === 'switch') label = 'Switch';
+    if (nodeType === 'contextOperation') label = 'Context Operation';
     if (nodeType === 'frontendForm') label = 'Frontend - Form';
     if (nodeType === 'httpRequest') label = 'HTTP Request';
     if (nodeType === 'jsonParser') label = 'JSON Parser';
@@ -1400,6 +1514,9 @@ function InnerCanvas() {
         label,
         expression: '',
         cases: [],
+      } : nodeType === 'contextOperation' ? {
+        label,
+        operations: [],
       } : { label },
       selected: false,
     };
@@ -1696,12 +1813,14 @@ function InnerCanvas() {
     const activeCondition = selectedNodes.find(n => n.type === 'condition');
     const activeCaseCondition = selectedNodes.find(n => n.type === 'caseCondition');
     const activeSwitch = selectedNodes.find(n => n.type === 'switch');
+    const activeContextOperation = selectedNodes.find(n => n.type === 'contextOperation');
     setActiveFormNodeId(activeForm ? activeForm.id : null);
     setActiveHttpNodeId(activeHttp ? activeHttp.id : null);
     setActiveJsonParserNodeId(activeJsonParser ? activeJsonParser.id : null);
     setActiveConditionNodeId(activeCondition ? activeCondition.id : null);
     setActiveCaseConditionNodeId(activeCaseCondition ? activeCaseCondition.id : null);
     setActiveSwitchNodeId(activeSwitch ? activeSwitch.id : null);
+    setActiveContextOperationNodeId(activeContextOperation ? activeContextOperation.id : null);
     
     // Ensure edges are only selected if explicitly clicked, not automatically when nodes are selected
     setEdges((eds) => {
@@ -1910,6 +2029,12 @@ function InnerCanvas() {
                 <span className="material-icons">shuffle</span>
               </div>
               <span>Switch</span>
+            </div>
+            <div className="node-menu-item" onClick={() => addNode('contextOperation')}>
+              <div className="node-menu-icon frontend-form-icon">
+                <span className="material-icons">settings</span>
+              </div>
+              <span>Context Operation</span>
             </div>
             <div className="node-menu-item" onClick={() => addNode('httpRequest')}>
               <div className="node-menu-icon frontend-form-icon">
@@ -2243,6 +2368,103 @@ function InnerCanvas() {
           <div className="sidesheet-footer">
             <div className="footer-left">
               <button className="btn-danger" onClick={deleteSelectedSwitchNode}>Delete</button>
+            </div>
+            <div className="footer-right">
+              <button className="btn-secondary" onClick={closeSidesheet}>Close</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Sidesheet for Context Operation */}
+      {selectedContextOperationNode && (
+        <div 
+          className="sidesheet"
+          onMouseDown={(e) => e.stopPropagation()}
+          onClick={(e) => e.stopPropagation()}
+          onPointerDown={(e) => e.stopPropagation()}
+        >
+          <div className="sidesheet-header">
+            <div className="sidesheet-title">Context Operation</div>
+          </div>
+          <div className="sidesheet-tabs">
+            <button className={`tab-btn ${activeContextOperationTab==='details'?'active':''}`} onClick={()=>{
+              setActiveContextOperationTab('details');
+              if (selectedContextOperationNode?.id) localStorage.setItem(`sidesheetTab:${selectedContextOperationNode.id}`, 'details');
+            }}>Details</button>
+            <button className={`tab-btn ${activeContextOperationTab==='operations'?'active':''}`} onClick={()=>{
+              setActiveContextOperationTab('operations');
+              if (selectedContextOperationNode?.id) localStorage.setItem(`sidesheetTab:${selectedContextOperationNode.id}`, 'operations');
+            }}>Operations</button>
+          </div>
+          <div className="sidesheet-body">
+            {activeContextOperationTab === 'details' && (
+              <div>
+                <label className="input-label" htmlFor="context-operation-name">Name</label>
+                <input
+                  id="context-operation-name"
+                  className="text-input"
+                  type="text"
+                  value={selectedContextOperationNode.data?.label || ''}
+                  onChange={(e) => updateContextOperationProperty('label', e.target.value)}
+                  placeholder="Context Operation"
+                />
+              </div>
+            )}
+            {activeContextOperationTab === 'operations' && (
+              <div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                  <label className="input-label" style={{ margin: 0 }}>Operations</label>
+                  <button className="btn-secondary" onClick={addContextOperation} style={{ padding: '4px 8px', fontSize: '12px' }}>
+                    Add Operation
+                  </button>
+                </div>
+                <div style={{ fontSize: '12px', color: 'var(--color-gray-500)', marginBottom: '12px' }}>
+                  Define operations to modify context variables during journey execution.
+                </div>
+                {(selectedContextOperationNode.data?.operations || []).map((op, idx) => (
+                  <div key={idx} style={{ border: '1px solid var(--color-gray-300)', borderRadius: '4px', padding: '12px', marginBottom: '12px' }}>
+                    <div style={{ display: 'flex', gap: '8px', marginBottom: '8px' }}>
+                      <input
+                        className="text-input"
+                        style={{ flex: 1 }}
+                        type="text"
+                        value={op.variable || ''}
+                        onChange={(e) => updateContextOperation(idx, 'variable', e.target.value)}
+                        placeholder="Variable name"
+                      />
+                      <select
+                        className="text-input"
+                        style={{ width: '150px' }}
+                        value={op.operation || 'set'}
+                        onChange={(e) => updateContextOperation(idx, 'operation', e.target.value)}
+                      >
+                        <option value="set">Set</option>
+                        <option value="increment">Increment</option>
+                        <option value="decrement">Decrement</option>
+                        <option value="concat">Concatenate</option>
+                        <option value="clear">Clear</option>
+                        <option value="remove">Remove</option>
+                      </select>
+                      <button className="btn-danger" onClick={() => removeContextOperation(idx)} style={{ padding: '4px 12px', fontSize: '12px' }}>
+                        Remove
+                      </button>
+                    </div>
+                    <input
+                      className="text-input"
+                      type="text"
+                      value={op.value || ''}
+                      onChange={(e) => updateContextOperation(idx, 'value', e.target.value)}
+                      placeholder="Value or expression"
+                    />
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+          <div className="sidesheet-footer">
+            <div className="footer-left">
+              <button className="btn-danger" onClick={deleteSelectedContextOperationNode}>Delete</button>
             </div>
             <div className="footer-right">
               <button className="btn-secondary" onClick={closeSidesheet}>Close</button>
