@@ -159,16 +159,16 @@ const ConditionNode = ({ data, selected }) => (
     />
     <Handle
       type="source"
-      position={Position.Top}
+      position={Position.Right}
       id="yes"
       style={{ 
         background: '#00BBDD', // var(--color-success-green)
         border: '2px solid white',
         width: '8px',
         height: '8px',
-        top: '-4px',
-        left: '50%',
-        transform: 'translateX(-50%)'
+        right: '-4px',
+        top: '50%',
+        transform: 'translateY(-50%)'
       }}
     />
     <Handle
@@ -240,6 +240,58 @@ const HttpBackendNode = ({ data, selected }) => (
   </div>
 );
 
+const JsonParserNode = ({ data, selected }) => (
+  <div className={`frontend-form-node ${selected ? 'selected' : ''}`}>
+    <div className="frontend-form-title">{data.label || 'JSON Parser'}</div>
+    <div className="frontend-form-subtitle">Parser</div>
+    {/* Input */}
+    <Handle
+      type="target"
+      position={Position.Left}
+      id="input"
+      style={{ 
+        background: '#041295', // var(--color-primary-blue)
+        border: '2px solid white',
+        width: '8px',
+        height: '8px',
+        left: '-4px',
+        top: '50%',
+        transform: 'translateY(-50%)'
+      }}
+    />
+    {/* Output: success */}
+    <Handle
+      type="source"
+      position={Position.Right}
+      id="success"
+      style={{ 
+        background: '#00BBDD', // var(--color-success-green)
+        border: '2px solid white',
+        width: '8px',
+        height: '8px',
+        right: '-4px',
+        top: '35%',
+        transform: 'translateY(-50%)'
+      }}
+    />
+    {/* Output: error */}
+    <Handle
+      type="source"
+      position={Position.Right}
+      id="error"
+      style={{ 
+        background: '#E01E00', // var(--color-error-red)
+        border: '2px solid white',
+        width: '8px',
+        height: '8px',
+        right: '-4px',
+        top: '65%',
+        transform: 'translateY(-50%)'
+      }}
+    />
+  </div>
+);
+
 // Node types configuration
 const nodeTypes = {
   start: StartNode,
@@ -248,6 +300,7 @@ const nodeTypes = {
   condition: ConditionNode,
   frontendForm: FrontendFormNode,
   httpRequest: HttpBackendNode,
+  jsonParser: JsonParserNode,
 };
 
 const loadJourney = () => {
@@ -391,15 +444,21 @@ function InnerCanvas() {
   const [showNodeMenu, setShowNodeMenu] = useState(false);
   const [activeFormNodeId, setActiveFormNodeId] = useState(null);
   const [activeHttpNodeId, setActiveHttpNodeId] = useState(null);
+  const [activeJsonParserNodeId, setActiveJsonParserNodeId] = useState(null);
+  const [activeConditionNodeId, setActiveConditionNodeId] = useState(null);
   const reactFlowInstance = useReactFlow();
   const canvasRef = useRef(null);
   const [activeTab, setActiveTab] = useState('details');
   const [activeHttpTab, setActiveHttpTab] = useState('details');
+  const [activeJsonParserTab, setActiveJsonParserTab] = useState('details');
+  const [activeConditionTab, setActiveConditionTab] = useState('details');
   const [formSchema, setFormSchema] = useState(null);
   const [selectedElementIndex, setSelectedElementIndex] = useState(null);
   
   const selectedFrontendForm = nodes.find(n => n.id === activeFormNodeId);
   const selectedHttpNode = nodes.find(n => n.id === activeHttpNodeId);
+  const selectedJsonParserNode = nodes.find(n => n.id === activeJsonParserNodeId);
+  const selectedConditionNode = nodes.find(n => n.id === activeConditionNodeId);
 
   // hydrate schema when selection changes
   React.useEffect(() => {
@@ -421,6 +480,22 @@ function InnerCanvas() {
     const savedTab = localStorage.getItem(`sidesheetTab:${selectedHttpNode.id}`);
     setActiveHttpTab(savedTab === 'request' ? 'request' : savedTab === 'context' ? 'context' : 'details');
   }, [selectedHttpNode?.id]);
+
+  // hydrate JSON Parser node tab when selection changes
+  React.useEffect(() => {
+    if (!selectedJsonParserNode) return;
+    // restore active tab from localStorage
+    const savedTab = localStorage.getItem(`sidesheetTab:${selectedJsonParserNode.id}`);
+    setActiveJsonParserTab(savedTab === 'extraction' ? 'extraction' : savedTab === 'context' ? 'context' : 'details');
+  }, [selectedJsonParserNode?.id]);
+
+  // hydrate Condition node tab when selection changes
+  React.useEffect(() => {
+    if (!selectedConditionNode) return;
+    // restore active tab from localStorage
+    const savedTab = localStorage.getItem(`sidesheetTab:${selectedConditionNode.id}`);
+    setActiveConditionTab(savedTab === 'condition' ? 'condition' : 'details');
+  }, [selectedConditionNode?.id]);
 
   // persist schema to node and storage (basic debounce)
   React.useEffect(() => {
@@ -657,12 +732,59 @@ function InnerCanvas() {
     }));
   }, [activeHttpNodeId, setNodes]);
 
+  // Update handlers for JSON Parser node
+  const updateJsonParserProperty = useCallback((property, value) => {
+    setNodes((nds) => nds.map(node => {
+      if (node.id === activeJsonParserNodeId) {
+        return { ...node, data: { ...node.data, [property]: value } };
+      }
+      return node;
+    }));
+  }, [activeJsonParserNodeId, setNodes]);
+
+  const updateExtractionRule = useCallback((index, field, value) => {
+    setNodes((nds) => nds.map(node => {
+      if (node.id === activeJsonParserNodeId) {
+        const extractionRules = [...(node.data?.extractionRules || [])];
+        if (extractionRules[index]) {
+          extractionRules[index] = { ...extractionRules[index], [field]: value };
+        }
+        return { ...node, data: { ...node.data, extractionRules } };
+      }
+      return node;
+    }));
+  }, [activeJsonParserNodeId, setNodes]);
+
+  const addExtractionRule = useCallback(() => {
+    setNodes((nds) => nds.map(node => {
+      if (node.id === activeJsonParserNodeId) {
+        const extractionRules = [...(node.data?.extractionRules || [])];
+        extractionRules.push({ outputName: '', jsonPath: '', required: false });
+        return { ...node, data: { ...node.data, extractionRules } };
+      }
+      return node;
+    }));
+  }, [activeJsonParserNodeId, setNodes]);
+
+  const removeExtractionRule = useCallback((index) => {
+    setNodes((nds) => nds.map(node => {
+      if (node.id === activeJsonParserNodeId) {
+        const extractionRules = [...(node.data?.extractionRules || [])];
+        extractionRules.splice(index, 1);
+        return { ...node, data: { ...node.data, extractionRules } };
+      }
+      return node;
+    }));
+  }, [activeJsonParserNodeId, setNodes]);
+
   const closeSidesheet = useCallback(() => {
     // Deselect any selected nodes
     setNodes((nds) => nds.map(node => ({ ...node, selected: false })));
     setSelectedElements([]);
     setActiveFormNodeId(null);
     setActiveHttpNodeId(null);
+    setActiveJsonParserNodeId(null);
+    setActiveConditionNodeId(null);
   }, [setNodes]);
 
   const deleteSelectedFrontendForm = useCallback(() => {
@@ -674,6 +796,46 @@ function InnerCanvas() {
     setSelectedElements([]);
     setActiveFormNodeId(null);
   }, [activeFormNodeId, setNodes, setEdges]);
+
+  const deleteSelectedHttpNode = useCallback(() => {
+    const nodeId = activeHttpNodeId;
+    if (!nodeId) return;
+    // Remove node and connected edges
+    setNodes((nds) => nds.filter(n => n.id !== nodeId));
+    setEdges((eds) => eds.filter(e => e.source !== nodeId && e.target !== nodeId));
+    setSelectedElements([]);
+    setActiveHttpNodeId(null);
+  }, [activeHttpNodeId, setNodes, setEdges]);
+
+  const deleteSelectedJsonParserNode = useCallback(() => {
+    const nodeId = activeJsonParserNodeId;
+    if (!nodeId) return;
+    // Remove node and connected edges
+    setNodes((nds) => nds.filter(n => n.id !== nodeId));
+    setEdges((eds) => eds.filter(e => e.source !== nodeId && e.target !== nodeId));
+    setSelectedElements([]);
+    setActiveJsonParserNodeId(null);
+  }, [activeJsonParserNodeId, setNodes, setEdges]);
+
+  const deleteSelectedConditionNode = useCallback(() => {
+    const nodeId = activeConditionNodeId;
+    if (!nodeId) return;
+    // Remove node and connected edges
+    setNodes((nds) => nds.filter(n => n.id !== nodeId));
+    setEdges((eds) => eds.filter(e => e.source !== nodeId && e.target !== nodeId));
+    setSelectedElements([]);
+    setActiveConditionNodeId(null);
+  }, [activeConditionNodeId, setNodes, setEdges]);
+
+  // Update handlers for Condition node
+  const updateConditionProperty = useCallback((property, value) => {
+    setNodes((nds) => nds.map(node => {
+      if (node.id === activeConditionNodeId) {
+        return { ...node, data: { ...node.data, [property]: value } };
+      }
+      return node;
+    }));
+  }, [activeConditionNodeId, setNodes]);
 
   // Editor operations
   const genGuid = () => 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
@@ -882,6 +1044,7 @@ function InnerCanvas() {
     if (nodeType === 'condition') label = 'Condition';
     if (nodeType === 'frontendForm') label = 'Frontend - Form';
     if (nodeType === 'httpRequest') label = 'HTTP Request';
+    if (nodeType === 'jsonParser') label = 'JSON Parser';
     
     // Calculate position centered in the currently visible viewport
     const container = canvasRef.current || document.querySelector('.journey-canvas-container');
@@ -912,6 +1075,15 @@ function InnerCanvas() {
         caCertificate: '',
         contextVariables: [],
         requestTemplate: '',
+      } : nodeType === 'jsonParser' ? {
+        label,
+        sourceVariable: 'data',
+        extractionRules: [],
+      } : nodeType === 'condition' ? {
+        label,
+        operator: 'eq',
+        leftOperand: '',
+        rightOperand: '',
       } : { label },
       selected: false,
     };
@@ -921,7 +1093,7 @@ function InnerCanvas() {
     setShowNodeMenu(false); // Close the menu after adding
     
     console.log(`Added new ${nodeType} node:`, newNode);
-  }, [nextNodeId, setNodes]);
+  }, [nextNodeId, setNodes, reactFlowInstance, canvasRef]);
 
   // Function to toggle the node menu
   const toggleNodeMenu = useCallback(() => {
@@ -1130,8 +1302,12 @@ function InnerCanvas() {
     setSelectedElements([...selectedNodes, ...selectedEdges]);
     const activeForm = selectedNodes.find(n => n.type === 'frontendForm');
     const activeHttp = selectedNodes.find(n => n.type === 'httpRequest');
+    const activeJsonParser = selectedNodes.find(n => n.type === 'jsonParser');
+    const activeCondition = selectedNodes.find(n => n.type === 'condition');
     setActiveFormNodeId(activeForm ? activeForm.id : null);
     setActiveHttpNodeId(activeHttp ? activeHttp.id : null);
+    setActiveJsonParserNodeId(activeJsonParser ? activeJsonParser.id : null);
+    setActiveConditionNodeId(activeCondition ? activeCondition.id : null);
     
     // Ensure edges are only selected if explicitly clicked, not automatically when nodes are selected
     setEdges((eds) => {
@@ -1335,6 +1511,12 @@ function InnerCanvas() {
               </div>
               <span>HTTP Request</span>
             </div>
+            <div className="node-menu-item" onClick={() => addNode('jsonParser')}>
+              <div className="node-menu-icon frontend-form-icon">
+                <span className="material-icons">data_object</span>
+              </div>
+              <span>JSON Parser</span>
+            </div>
             {/* Future node types can be added here */}
           </div>
         )}
@@ -1343,6 +1525,103 @@ function InnerCanvas() {
       {/* Overlay to close menu when clicking outside */}
       {showNodeMenu && (
         <div className="menu-overlay" onClick={closeNodeMenu} />
+      )}
+
+      {/* Sidesheet for Condition */}
+      {selectedConditionNode && (
+        <div 
+          className="sidesheet"
+          onMouseDown={(e) => e.stopPropagation()}
+          onClick={(e) => e.stopPropagation()}
+          onPointerDown={(e) => e.stopPropagation()}
+        >
+          <div className="sidesheet-header">
+            <div className="sidesheet-title">Condition</div>
+          </div>
+          <div className="sidesheet-tabs">
+            <button className={`tab-btn ${activeConditionTab==='details'?'active':''}`} onClick={()=>{
+              setActiveConditionTab('details');
+              if (selectedConditionNode?.id) localStorage.setItem(`sidesheetTab:${selectedConditionNode.id}`, 'details');
+            }}>Details</button>
+            <button className={`tab-btn ${activeConditionTab==='condition'?'active':''}`} onClick={()=>{
+              setActiveConditionTab('condition');
+              if (selectedConditionNode?.id) localStorage.setItem(`sidesheetTab:${selectedConditionNode.id}`, 'condition');
+            }}>Condition</button>
+          </div>
+          <div className="sidesheet-body">
+            {activeConditionTab === 'details' && (
+              <div>
+                <label className="input-label" htmlFor="condition-name">Name</label>
+                <input
+                  id="condition-name"
+                  className="text-input"
+                  type="text"
+                  value={selectedConditionNode.data?.label || ''}
+                  onChange={(e) => updateConditionProperty('label', e.target.value)}
+                  placeholder="Condition"
+                />
+              </div>
+            )}
+            {activeConditionTab === 'condition' && (
+              <div>
+                <label className="input-label" htmlFor="condition-left">Left Operand</label>
+                <input
+                  id="condition-left"
+                  className="text-input"
+                  type="text"
+                  value={selectedConditionNode.data?.leftOperand || ''}
+                  onChange={(e) => updateConditionProperty('leftOperand', e.target.value)}
+                  placeholder="variable or value"
+                />
+                <div style={{ height: '12px' }} />
+                <label className="input-label" htmlFor="condition-operator">Operator</label>
+                <select
+                  id="condition-operator"
+                  className="text-input"
+                  value={selectedConditionNode.data?.operator || 'eq'}
+                  onChange={(e) => updateConditionProperty('operator', e.target.value)}
+                >
+                  <option value="eq">Equal (eq)</option>
+                  <option value="ne">Not Equal (ne)</option>
+                  <option value="gt">Greater Than (gt)</option>
+                  <option value="gte">Greater Than or Equal (gte)</option>
+                  <option value="lt">Less Than (lt)</option>
+                  <option value="lte">Less Than or Equal (lte)</option>
+                  <option value="contains">Contains</option>
+                  <option value="startsWith">Starts With</option>
+                  <option value="endsWith">Ends With</option>
+                  <option value="in">In</option>
+                  <option value="exists">Exists</option>
+                </select>
+                <div style={{ height: '12px' }} />
+                <label className="input-label" htmlFor="condition-right">Right Operand</label>
+                <input
+                  id="condition-right"
+                  className="text-input"
+                  type="text"
+                  value={selectedConditionNode.data?.rightOperand || ''}
+                  onChange={(e) => updateConditionProperty('rightOperand', e.target.value)}
+                  placeholder="variable or value"
+                />
+                <div style={{ height: '12px' }} />
+                <div style={{ fontSize: '13px', color: 'var(--color-gray-600)', backgroundColor: 'var(--color-gray-50)', padding: '12px', borderRadius: '4px' }}>
+                  <strong>Condition Preview:</strong><br/>
+                  <code style={{ fontSize: '12px', fontFamily: 'monospace' }}>
+                    {selectedConditionNode.data?.leftOperand || '?'} {selectedConditionNode.data?.operator || 'eq'} {selectedConditionNode.data?.rightOperand || '?'}
+                  </code>
+                </div>
+              </div>
+            )}
+          </div>
+          <div className="sidesheet-footer">
+            <div className="footer-left">
+              <button className="btn-danger" onClick={deleteSelectedConditionNode}>Delete</button>
+            </div>
+            <div className="footer-right">
+              <button className="btn-secondary" onClick={closeSidesheet}>Close</button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Sidesheet for HTTP Request */}
@@ -1535,6 +1814,163 @@ function InnerCanvas() {
                 ))}
               </div>
             )}
+          </div>
+          <div className="sidesheet-footer">
+            <div className="footer-left">
+              <button className="btn-danger" onClick={deleteSelectedHttpNode}>Delete</button>
+            </div>
+            <div className="footer-right">
+              <button className="btn-secondary" onClick={closeSidesheet}>Close</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Sidesheet for JSON Parser */}
+      {selectedJsonParserNode && (
+        <div 
+          className="sidesheet"
+          onMouseDown={(e) => e.stopPropagation()}
+          onClick={(e) => e.stopPropagation()}
+          onPointerDown={(e) => e.stopPropagation()}
+        >
+          <div className="sidesheet-header">
+            <div className="sidesheet-title">JSON Parser</div>
+          </div>
+          <div className="sidesheet-tabs">
+            <button className={`tab-btn ${activeJsonParserTab==='details'?'active':''}`} onClick={()=>{
+              setActiveJsonParserTab('details');
+              if (selectedJsonParserNode?.id) localStorage.setItem(`sidesheetTab:${selectedJsonParserNode.id}`, 'details');
+            }}>Details</button>
+            <button className={`tab-btn ${activeJsonParserTab==='extraction'?'active':''}`} onClick={()=>{
+              setActiveJsonParserTab('extraction');
+              if (selectedJsonParserNode?.id) localStorage.setItem(`sidesheetTab:${selectedJsonParserNode.id}`, 'extraction');
+            }}>Extraction Rules</button>
+            <button className={`tab-btn ${activeJsonParserTab==='context'?'active':''}`} onClick={()=>{
+              setActiveJsonParserTab('context');
+              if (selectedJsonParserNode?.id) localStorage.setItem(`sidesheetTab:${selectedJsonParserNode.id}`, 'context');
+            }}>Context</button>
+          </div>
+          <div className="sidesheet-body">
+            {activeJsonParserTab === 'details' && (
+              <div>
+                <label className="input-label" htmlFor="json-parser-name">Name</label>
+                <input
+                  id="json-parser-name"
+                  className="text-input"
+                  type="text"
+                  value={selectedJsonParserNode.data?.label || ''}
+                  onChange={(e) => updateJsonParserProperty('label', e.target.value)}
+                  placeholder="JSON Parser"
+                />
+                <div style={{ height: '12px' }} />
+                <label className="input-label" htmlFor="json-parser-source">Source Variable</label>
+                <input
+                  id="json-parser-source"
+                  className="text-input"
+                  type="text"
+                  value={selectedJsonParserNode.data?.sourceVariable || ''}
+                  onChange={(e) => updateJsonParserProperty('sourceVariable', e.target.value)}
+                  placeholder="data"
+                />
+                <div style={{ height: '8px' }} />
+                <div style={{ fontSize: '12px', color: 'var(--color-gray-500)', fontStyle: 'italic' }}>
+                  Context variable containing the JSON to parse
+                </div>
+              </div>
+            )}
+            {activeJsonParserTab === 'extraction' && (
+              <div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                  <label className="input-label" style={{ margin: 0 }}>Field Mappings</label>
+                  <button className="btn-secondary" onClick={addExtractionRule} style={{ padding: '4px 8px', fontSize: '12px' }}>
+                    Add Rule
+                  </button>
+                </div>
+                <div style={{ fontSize: '12px', color: 'var(--color-gray-500)', marginBottom: '12px' }}>
+                  Define JSONPath expressions to extract fields from JSON
+                </div>
+                {(selectedJsonParserNode.data?.extractionRules || []).map((rule, idx) => (
+                  <div key={idx} style={{ border: '1px solid var(--color-gray-300)', borderRadius: '4px', padding: '12px', marginBottom: '12px' }}>
+                    <div style={{ display: 'flex', gap: '8px', marginBottom: '8px' }}>
+                      <input
+                        className="text-input"
+                        style={{ flex: 1 }}
+                        type="text"
+                        value={rule.outputName || ''}
+                        onChange={(e) => updateExtractionRule(idx, 'outputName', e.target.value)}
+                        placeholder="Output variable name"
+                      />
+                      <button 
+                        className="btn-danger" 
+                        onClick={() => removeExtractionRule(idx)}
+                        style={{ padding: '4px 8px' }}
+                        title="Remove"
+                      >
+                        <span className="material-icons" style={{ fontSize: '16px' }}>delete_outline</span>
+                      </button>
+                    </div>
+                    <div style={{ display: 'flex', gap: '8px', marginBottom: '8px' }}>
+                      <input
+                        className="text-input"
+                        style={{ flex: 1 }}
+                        type="text"
+                        value={rule.jsonPath || ''}
+                        onChange={(e) => updateExtractionRule(idx, 'jsonPath', e.target.value)}
+                        placeholder="JSONPath (e.g., $.data.userId)"
+                      />
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <input
+                        type="checkbox"
+                        id={`required-${idx}`}
+                        checked={rule.required || false}
+                        onChange={(e) => updateExtractionRule(idx, 'required', e.target.checked)}
+                      />
+                      <label className="input-label" htmlFor={`required-${idx}`} style={{ margin: 0, fontSize: '13px' }}>Required</label>
+                    </div>
+                  </div>
+                ))}
+                <div style={{ fontSize: '12px', color: 'var(--color-gray-500)', fontStyle: 'italic' }}>
+                  Example JSONPath expressions: $.data.userId, $.result[0].name, $.items[*].id
+                </div>
+              </div>
+            )}
+            {activeJsonParserTab === 'context' && (
+              <div>
+                <div style={{ fontSize: '12px', color: 'var(--color-gray-500)', marginBottom: '12px' }}>
+                  The following variables will be added to context:
+                </div>
+                {(selectedJsonParserNode.data?.extractionRules || []).length > 0 ? (
+                  <div>
+                    {(selectedJsonParserNode.data?.extractionRules || []).map((rule, idx) => (
+                      <div key={idx} style={{ 
+                        padding: '8px', 
+                        marginBottom: '4px', 
+                        backgroundColor: 'var(--color-gray-50)', 
+                        borderRadius: '4px',
+                        fontSize: '13px',
+                        fontFamily: 'monospace'
+                      }}>
+                        {rule.outputName || '(unnamed)'}
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div style={{ fontSize: '13px', color: 'var(--color-gray-400)', fontStyle: 'italic' }}>
+                    No extraction rules defined yet
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+          <div className="sidesheet-footer">
+            <div className="footer-left">
+              <button className="btn-danger" onClick={deleteSelectedJsonParserNode}>Delete</button>
+            </div>
+            <div className="footer-right">
+              <button className="btn-secondary" onClick={closeSidesheet}>Close</button>
+            </div>
           </div>
         </div>
       )}
