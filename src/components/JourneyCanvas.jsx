@@ -141,7 +141,7 @@ const ErrorEndNode = ({ data, selected }) => (
 const ConditionNode = ({ data, selected }) => (
   <div className={`journey-condition-node ${selected ? 'selected' : ''}`}>
     <div className="condition-diamond">
-      <div className="condition-content">{data.label || 'Boolean Condition'}</div>
+      <div className="condition-content">{data.label || 'Condition'}</div>
     </div>
     <Handle
       type="target"
@@ -298,7 +298,7 @@ const CaseConditionNode = ({ data, selected }) => {
   
   return (
     <div className={`frontend-form-node ${selected ? 'selected' : ''}`} style={{ minHeight: '120px' }}>
-      <div className="frontend-form-title">{data.label || 'Case Condition'}</div>
+      <div className="frontend-form-title">{data.label || 'Switch'}</div>
       <div className="frontend-form-subtitle">Condition</div>
       {/* Input */}
       <Handle
@@ -568,7 +568,7 @@ function InnerCanvas() {
     setActiveConditionTab(savedTab === 'condition' ? 'condition' : 'details');
   }, [selectedConditionNode?.id]);
 
-  // hydrate Case Condition node tab when selection changes
+  // hydrate Switch node tab when selection changes
   React.useEffect(() => {
     if (!selectedCaseConditionNode) return;
     // restore active tab from localStorage
@@ -943,7 +943,7 @@ function InnerCanvas() {
     }));
   }, [activeConditionNodeId, setNodes]);
 
-  // Update handlers for Case Condition node
+  // Update handlers for Switch node
   const deleteSelectedCaseConditionNode = useCallback(() => {
     const nodeId = activeCaseConditionNodeId;
     if (!nodeId) return;
@@ -1214,8 +1214,8 @@ function InnerCanvas() {
     let label = 'Node';
     if (nodeType === 'successEnd') label = 'Success';
     if (nodeType === 'errorEnd') label = 'Error';
-    if (nodeType === 'condition') label = 'Boolean Condition';
-    if (nodeType === 'caseCondition') label = 'Case Condition';
+    if (nodeType === 'condition') label = 'Condition';
+    if (nodeType === 'caseCondition') label = 'Switch';
     if (nodeType === 'frontendForm') label = 'Frontend - Form';
     if (nodeType === 'httpRequest') label = 'HTTP Request';
     if (nodeType === 'jsonParser') label = 'JSON Parser';
@@ -1708,13 +1708,13 @@ function InnerCanvas() {
               <div className="node-menu-icon condition-icon">
                 <span className="material-icons">help_outline</span>
               </div>
-              <span>Boolean Condition</span>
+              <span>Condition</span>
             </div>
             <div className="node-menu-item" onClick={() => addNode('caseCondition')}>
               <div className="node-menu-icon frontend-form-icon">
                 <span className="material-icons">call_split</span>
               </div>
-              <span>Case Condition</span>
+              <span>Switch</span>
             </div>
             <div className="node-menu-item" onClick={() => addNode('httpRequest')}>
               <div className="node-menu-icon frontend-form-icon">
@@ -1747,7 +1747,7 @@ function InnerCanvas() {
           onPointerDown={(e) => e.stopPropagation()}
         >
           <div className="sidesheet-header">
-            <div className="sidesheet-title">Boolean Condition</div>
+            <div className="sidesheet-title">Condition</div>
           </div>
           <div className="sidesheet-tabs">
             <button className={`tab-btn ${activeConditionTab==='details'?'active':''}`} onClick={()=>{
@@ -1769,7 +1769,7 @@ function InnerCanvas() {
                   type="text"
                   value={selectedConditionNode.data?.label || ''}
                   onChange={(e) => updateConditionProperty('label', e.target.value)}
-                  placeholder="Boolean Condition"
+                  placeholder="Condition"
                 />
               </div>
             )}
@@ -1820,6 +1820,10 @@ function InnerCanvas() {
                   <code style={{ fontSize: '12px', fontFamily: 'monospace' }}>
                     {selectedConditionNode.data?.leftOperand || '?'} {selectedConditionNode.data?.operator || 'eq'} {selectedConditionNode.data?.rightOperand || '?'}
                   </code>
+                  <br/><br/>
+                  <div style={{ fontSize: '12px', color: 'var(--color-gray-500)' }}>
+                    <strong>Note:</strong> The "false" path is actually an "else" path that executes when the condition is not met.
+                  </div>
                 </div>
               </div>
             )}
@@ -1835,7 +1839,7 @@ function InnerCanvas() {
         </div>
       )}
 
-      {/* Sidesheet for Case Condition */}
+      {/* Sidesheet for Switch */}
       {selectedCaseConditionNode && (
         <div 
           className="sidesheet"
@@ -1844,7 +1848,7 @@ function InnerCanvas() {
           onPointerDown={(e) => e.stopPropagation()}
         >
           <div className="sidesheet-header">
-            <div className="sidesheet-title">Case Condition</div>
+            <div className="sidesheet-title">Switch</div>
           </div>
           <div className="sidesheet-tabs">
             <button className={`tab-btn ${activeCaseConditionTab==='details'?'active':''}`} onClick={()=>{
@@ -1866,7 +1870,7 @@ function InnerCanvas() {
                   type="text"
                   value={selectedCaseConditionNode.data?.label || ''}
                   onChange={(e) => updateCaseConditionProperty('label', e.target.value)}
-                  placeholder="Case Condition"
+                  placeholder="Switch"
                 />
               </div>
             )}
