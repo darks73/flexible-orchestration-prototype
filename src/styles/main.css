@@ -144,10 +144,21 @@ h4, .h4 {
 
 .journey-canvas-container {
     outline: none;
+    position: relative;
 }
 
 .journey-canvas-container:focus {
     outline: none;
+}
+
+/* Selection Rectangle for Multi-Select */
+.selection-rectangle {
+    position: absolute;
+    border: 2px dashed var(--color-primary-blue);
+    background: rgba(4, 18, 149, 0.1);
+    pointer-events: none;
+    z-index: 1000;
+    box-sizing: border-box;
 }
 
 /* React Flow Styles */

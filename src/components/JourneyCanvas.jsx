@@ -770,6 +770,11 @@ function InnerCanvas({ onExportReady, onImportReady }) {
   const exportReadyRef = useRef(false);
   const importReadyRef = useRef(false);
   
+  // Selection rectangle state for multi-select
+  const [selectionStart, setSelectionStart] = useState(null);
+  const [selectionEnd, setSelectionEnd] = useState(null);
+  const [isSelecting, setIsSelecting] = useState(false);
+  
   const selectedFrontendForm = nodes.find(n => n.id === activeFormNodeId);
   const selectedHttpNode = nodes.find(n => n.id === activeHttpNodeId);
   const selectedJsonParserNode = nodes.find(n => n.id === activeJsonParserNodeId);
@@ -1980,20 +1985,34 @@ function InnerCanvas({ onExportReady, onImportReady }) {
   const onSelectionChange = useCallback(({ nodes: selectedNodes, edges: selectedEdges }) => {
     // Only store selected elements and active form id; avoid mutating nodes/edges here
     setSelectedElements([...selectedNodes, ...selectedEdges]);
-    const activeForm = selectedNodes.find(n => n.type === 'frontendForm');
-    const activeHttp = selectedNodes.find(n => n.type === 'httpRequest');
-    const activeJsonParser = selectedNodes.find(n => n.type === 'jsonParser');
-    const activeCondition = selectedNodes.find(n => n.type === 'condition');
-    const activeCaseCondition = selectedNodes.find(n => n.type === 'caseCondition');
-    const activeSwitch = selectedNodes.find(n => n.type === 'switch');
-    const activeContextOperation = selectedNodes.find(n => n.type === 'contextOperation');
-    setActiveFormNodeId(activeForm ? activeForm.id : null);
-    setActiveHttpNodeId(activeHttp ? activeHttp.id : null);
-    setActiveJsonParserNodeId(activeJsonParser ? activeJsonParser.id : null);
-    setActiveConditionNodeId(activeCondition ? activeCondition.id : null);
-    setActiveCaseConditionNodeId(activeCaseCondition ? activeCaseCondition.id : null);
-    setActiveSwitchNodeId(activeSwitch ? activeSwitch.id : null);
-    setActiveContextOperationNodeId(activeContextOperation ? activeContextOperation.id : null);
+    
+    // Only open side sheet if exactly one node is selected (not multiple)
+    // Multi-select should not open side sheets
+    if (selectedNodes.length === 1 && selectedEdges.length === 0) {
+      const activeForm = selectedNodes.find(n => n.type === 'frontendForm');
+      const activeHttp = selectedNodes.find(n => n.type === 'httpRequest');
+      const activeJsonParser = selectedNodes.find(n => n.type === 'jsonParser');
+      const activeCondition = selectedNodes.find(n => n.type === 'condition');
+      const activeCaseCondition = selectedNodes.find(n => n.type === 'caseCondition');
+      const activeSwitch = selectedNodes.find(n => n.type === 'switch');
+      const activeContextOperation = selectedNodes.find(n => n.type === 'contextOperation');
+      setActiveFormNodeId(activeForm ? activeForm.id : null);
+      setActiveHttpNodeId(activeHttp ? activeHttp.id : null);
+      setActiveJsonParserNodeId(activeJsonParser ? activeJsonParser.id : null);
+      setActiveConditionNodeId(activeCondition ? activeCondition.id : null);
+      setActiveCaseConditionNodeId(activeCaseCondition ? activeCaseCondition.id : null);
+      setActiveSwitchNodeId(activeSwitch ? activeSwitch.id : null);
+      setActiveContextOperationNodeId(activeContextOperation ? activeContextOperation.id : null);
+    } else {
+      // Close side sheets when multiple items are selected or no items selected
+      setActiveFormNodeId(null);
+      setActiveHttpNodeId(null);
+      setActiveJsonParserNodeId(null);
+      setActiveConditionNodeId(null);
+      setActiveCaseConditionNodeId(null);
+      setActiveSwitchNodeId(null);
+      setActiveContextOperationNodeId(null);
+    }
     
     // Ensure edges are only selected if explicitly clicked, not automatically when nodes are selected
     setEdges((eds) => {
@@ -2375,6 +2394,268 @@ function InnerCanvas({ onExportReady, onImportReady }) {
     };
   }, [onImportReady, handleImportClick]);
 
+  // Helper function to check if a point is inside a rectangle
+  const isPointInRect = useCallback((point, rect) => {
+    return point.x >= rect.left && point.x <= rect.right &&
+           point.y >= rect.top && point.y <= rect.bottom;
+  }, []);
+
+  // Helper function to check if two rectangles intersect
+  const rectsIntersect = useCallback((rect1, rect2) => {
+    return !(rect1.right < rect2.left || rect1.left > rect2.right ||
+             rect1.bottom < rect2.top || rect1.top > rect2.bottom);
+  }, []);
+
+  // Get nodes and edges that intersect with the selection rectangle
+  const getIntersectingNodesEdges = useCallback((startPos, endPos) => {
+    if (!reactFlowInstance || !startPos || !endPos) return { nodes: [], edges: [] };
+
+    // Convert screen coordinates to flow coordinates
+    const flowStart = reactFlowInstance.screenToFlowPosition({ x: startPos.x, y: startPos.y });
+    const flowEnd = reactFlowInstance.screenToFlowPosition({ x: endPos.x, y: endPos.y });
+
+    // Normalize rectangle (handle dragging in any direction)
+    const rectLeft = Math.min(flowStart.x, flowEnd.x);
+    const rectRight = Math.max(flowStart.x, flowEnd.x);
+    const rectTop = Math.min(flowStart.y, flowEnd.y);
+    const rectBottom = Math.max(flowStart.y, flowEnd.y);
+
+    const selectionRect = {
+      left: rectLeft,
+      right: rectRight,
+      top: rectTop,
+      bottom: rectBottom
+    };
+
+    const allNodes = reactFlowInstance.getNodes();
+    const allEdges = reactFlowInstance.getEdges();
+
+    // Find intersecting nodes
+    const intersectingNodes = allNodes.filter(node => {
+      // Estimate node size based on type (approximate bounding boxes)
+      let nodeWidth = 100;
+      let nodeHeight = 80;
+      
+      if (node.type === 'start' || node.type === 'successEnd' || node.type === 'errorEnd') {
+        nodeWidth = 60;
+        nodeHeight = 60;
+      } else if (node.type === 'condition') {
+        nodeWidth = 100;
+        nodeHeight = 80;
+      } else {
+        // Frontend form, HTTP, etc.
+        nodeWidth = 150;
+        nodeHeight = 100;
+      }
+
+      const nodeRect = {
+        left: node.position.x,
+        right: node.position.x + nodeWidth,
+        top: node.position.y,
+        bottom: node.position.y + nodeHeight
+      };
+
+      return rectsIntersect(selectionRect, nodeRect);
+    });
+
+    // Find intersecting edges
+    const intersectingEdges = allEdges.filter(edge => {
+      // Get source and target node positions
+      const sourceNode = allNodes.find(n => n.id === edge.source);
+      const targetNode = allNodes.find(n => n.id === edge.target);
+      
+      if (!sourceNode || !targetNode) return false;
+
+      // Get node center positions (approximate - edges connect to handles, not centers)
+      // For more accuracy, we'd need handle positions, but center is a good approximation
+      let sourcePoint = { x: sourceNode.position.x, y: sourceNode.position.y };
+      let targetPoint = { x: targetNode.position.x, y: targetNode.position.y };
+      
+      // Estimate node sizes to get handle positions
+      let sourceWidth = 150, sourceHeight = 100;
+      let targetWidth = 150, targetHeight = 100;
+      
+      if (sourceNode.type === 'start' || sourceNode.type === 'successEnd' || sourceNode.type === 'errorEnd') {
+        sourceWidth = 60;
+        sourceHeight = 60;
+      } else if (sourceNode.type === 'condition') {
+        sourceWidth = 100;
+        sourceHeight = 80;
+      }
+      
+      if (targetNode.type === 'start' || targetNode.type === 'successEnd' || targetNode.type === 'errorEnd') {
+        targetWidth = 60;
+        targetHeight = 60;
+      } else if (targetNode.type === 'condition') {
+        targetWidth = 100;
+        targetHeight = 80;
+      }
+      
+      // Adjust points to approximate handle positions (edges connect at right/left sides)
+      sourcePoint = { x: sourceNode.position.x + sourceWidth, y: sourceNode.position.y + sourceHeight / 2 };
+      targetPoint = { x: targetNode.position.x, y: targetNode.position.y + targetHeight / 2 };
+      
+      // Check if endpoints are in selection
+      if (isPointInRect(sourcePoint, selectionRect) || isPointInRect(targetPoint, selectionRect)) {
+        return true;
+      }
+
+      // Check if any point along the edge line segment is inside the rectangle
+      // This handles cases where the edge passes through the rectangle without touching edges
+      const lineStart = sourcePoint;
+      const lineEnd = targetPoint;
+      
+      // Check if line segment intersects rectangle by checking if any point on the line is inside
+      // Use parametric form: P(t) = start + t * (end - start), where t is in [0, 1]
+      const dx = lineEnd.x - lineStart.x;
+      const dy = lineEnd.y - lineStart.y;
+      
+      // Sample points along the line segment to check if any are inside the rectangle
+      // This is more reliable than just checking edge intersections
+      const steps = Math.max(10, Math.floor(Math.sqrt(dx * dx + dy * dy) / 10)); // Sample every ~10px
+      for (let i = 0; i <= steps; i++) {
+        const t = i / steps;
+        const point = {
+          x: lineStart.x + t * dx,
+          y: lineStart.y + t * dy
+        };
+        if (isPointInRect(point, selectionRect)) {
+          return true;
+        }
+      }
+      
+      // Also check if line intersects any of the rectangle edges (for efficiency with short edges)
+      const rectEdges = [
+        { start: { x: selectionRect.left, y: selectionRect.top }, end: { x: selectionRect.right, y: selectionRect.top } },
+        { start: { x: selectionRect.right, y: selectionRect.top }, end: { x: selectionRect.right, y: selectionRect.bottom } },
+        { start: { x: selectionRect.right, y: selectionRect.bottom }, end: { x: selectionRect.left, y: selectionRect.bottom } },
+        { start: { x: selectionRect.left, y: selectionRect.bottom }, end: { x: selectionRect.left, y: selectionRect.top } }
+      ];
+
+      for (const rectEdge of rectEdges) {
+        if (lineIntersects(lineStart, lineEnd, rectEdge.start, rectEdge.end)) {
+          return true;
+        }
+      }
+
+      return false;
+    });
+
+    // Helper function to check if two line segments intersect
+    function lineIntersects(p1, p2, p3, p4) {
+      const ccw = (A, B, C) => (C.y - A.y) * (B.x - A.x) > (B.y - A.y) * (C.x - A.x);
+      return (ccw(p1, p3, p4) !== ccw(p2, p3, p4)) && (ccw(p1, p2, p3) !== ccw(p1, p2, p4));
+    }
+
+    return {
+      nodes: intersectingNodes,
+      edges: intersectingEdges
+    };
+  }, [reactFlowInstance, rectsIntersect, isPointInRect]);
+
+  // Handle mouse down for selection rectangle
+  const handleSelectionMouseDown = useCallback((event) => {
+    // Only start selection if Shift key is pressed and click is on empty canvas
+    if (!event.shiftKey) return;
+    
+    // Check if click is on a node or edge (React Flow handles this)
+    const target = event.target;
+    if (target.closest('.react-flow__node') || target.closest('.react-flow__edge')) {
+      return;
+    }
+
+    // Get mouse position relative to canvas container
+    const rect = canvasRef.current?.getBoundingClientRect();
+    if (!rect) return;
+
+    const x = event.clientX - rect.left;
+    const y = event.clientY - rect.top;
+
+    setSelectionStart({ x, y });
+    setSelectionEnd({ x, y });
+    setIsSelecting(true);
+    event.preventDefault();
+  }, []);
+
+  // Handle mouse move for selection rectangle
+  const handleSelectionMouseMove = useCallback((event) => {
+    if (!isSelecting || !selectionStart) return;
+
+    const rect = canvasRef.current?.getBoundingClientRect();
+    if (!rect) return;
+
+    const x = event.clientX - rect.left;
+    const y = event.clientY - rect.top;
+
+    setSelectionEnd({ x, y });
+  }, [isSelecting, selectionStart]);
+
+  // Handle mouse up for selection rectangle
+  const handleSelectionMouseUp = useCallback((event) => {
+    // Always reset selection rectangle first to ensure it disappears immediately
+    setIsSelecting(false);
+    const start = selectionStart;
+    const end = selectionEnd;
+    setSelectionStart(null);
+    setSelectionEnd(null);
+
+    if (!start || !end) {
+      return;
+    }
+
+    // Calculate which nodes/edges intersect with selection rectangle
+    const { nodes: intersectingNodes, edges: intersectingEdges } = getIntersectingNodesEdges(
+      start,
+      end
+    );
+
+    // Update selection - add to existing selection
+    if (intersectingNodes.length > 0 || intersectingEdges.length > 0) {
+      // Mark nodes as selected (add to existing selection)
+      setNodes((nds) =>
+        nds.map((node) => ({
+          ...node,
+          selected: intersectingNodes.some((n) => n.id === node.id) || node.selected
+        }))
+      );
+
+      // Mark edges as selected (add to existing selection)
+      setEdges((eds) =>
+        eds.map((edge) => ({
+          ...edge,
+          selected: intersectingEdges.some((e) => e.id === edge.id) || edge.selected
+        }))
+      );
+
+      // Get all selected nodes and edges (including newly selected ones)
+      // Use setTimeout to ensure state updates are complete
+      setTimeout(() => {
+        const allNodes = reactFlowInstance.getNodes();
+        const allEdges = reactFlowInstance.getEdges();
+        const allSelectedNodes = allNodes.filter(n => n.selected);
+        const allSelectedEdges = allEdges.filter(e => e.selected);
+        
+        onSelectionChange({ nodes: allSelectedNodes, edges: allSelectedEdges });
+      }, 0);
+    }
+  }, [selectionStart, selectionEnd, getIntersectingNodesEdges, setNodes, setEdges, reactFlowInstance, onSelectionChange]);
+
+  // Add global mouse event listeners
+  React.useEffect(() => {
+    if (isSelecting) {
+      const handleMouseMove = (e) => handleSelectionMouseMove(e);
+      const handleMouseUp = (e) => handleSelectionMouseUp(e);
+
+      window.addEventListener('mousemove', handleMouseMove);
+      window.addEventListener('mouseup', handleMouseUp);
+
+      return () => {
+        window.removeEventListener('mousemove', handleMouseMove);
+        window.removeEventListener('mouseup', handleMouseUp);
+      };
+    }
+  }, [isSelecting, handleSelectionMouseMove, handleSelectionMouseUp]);
+
 
   return (
     <div 
@@ -2384,6 +2665,7 @@ function InnerCanvas({ onExportReady, onImportReady }) {
       onKeyDown={onKeyDown}
       tabIndex={0}
       onClick={handleCanvasClick}
+      onMouseDown={handleSelectionMouseDown}
       onFocus={() => console.log('Canvas focused')}
       onBlur={() => console.log('Canvas blurred')}
     >
@@ -2437,6 +2719,19 @@ function InnerCanvas({ onExportReady, onImportReady }) {
         <Controls />
         <MiniMap pannable={true} zoomable={true} />
       </ReactFlow>
+      
+      {/* Selection Rectangle Overlay */}
+      {isSelecting && selectionStart && selectionEnd && (
+        <div
+          className="selection-rectangle"
+          style={{
+            left: Math.min(selectionStart.x, selectionEnd.x),
+            top: Math.min(selectionStart.y, selectionEnd.y),
+            width: Math.abs(selectionEnd.x - selectionStart.x),
+            height: Math.abs(selectionEnd.y - selectionStart.y),
+          }}
+        />
+      )}
       
       {/* Add Node Button */}
       <div className="add-node-container">
