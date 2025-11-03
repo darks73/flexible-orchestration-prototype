@@ -563,6 +563,164 @@ const saveJourney = (nodes, edges, nextNodeId) => {
   }
 };
 
+// Export journey data including form schemas
+const exportJourney = (nodes, edges, nextNodeId) => {
+  try {
+    const normalizedNodes = nodes.map(normalizeNode);
+    const normalizedEdges = edges.map(normalizeEdge);
+    
+    // Gather all form schemas from localStorage
+    const formSchemas = {};
+    const frontendFormNodes = normalizedNodes.filter(n => n.type === 'frontendForm');
+    frontendFormNodes.forEach(node => {
+      const schema = loadFormSchema(node.id);
+      if (schema) {
+        formSchemas[node.id] = schema;
+      }
+      // Also check if schema is in node.data
+      if (node.data?.formSchema) {
+        formSchemas[node.id] = node.data.formSchema;
+      }
+    });
+    
+    const exportData = {
+      nodes: normalizedNodes,
+      edges: normalizedEdges,
+      nextNodeId,
+      formSchemas,
+      version: '1.0',
+      exportedAt: new Date().toISOString()
+    };
+    
+    const jsonString = JSON.stringify(exportData, null, 2);
+    const blob = new Blob([jsonString], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
+    const filename = `journey-export-${timestamp}.json`;
+    
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  } catch (e) {
+    console.error('Failed to export journey', e);
+    alert('Failed to export journey. Please try again.');
+  }
+};
+
+// Validate imported journey data
+const validateJourneyData = (data) => {
+  const errors = [];
+  const warnings = [];
+  
+  // Check JSON structure
+  if (!data || typeof data !== 'object') {
+    errors.push('Invalid JSON format');
+    return { valid: false, errors, warnings };
+  }
+  
+  // Check required fields
+  if (!Array.isArray(data.nodes)) {
+    errors.push('Missing or invalid "nodes" field (must be an array)');
+  }
+  if (!Array.isArray(data.edges)) {
+    errors.push('Missing or invalid "edges" field (must be an array)');
+  }
+  if (typeof data.nextNodeId !== 'number') {
+    errors.push('Missing or invalid "nextNodeId" field (must be a number)');
+  }
+  
+  if (errors.length > 0) {
+    return { valid: false, errors, warnings };
+  }
+  
+  const validNodeTypes = ['start', 'successEnd', 'errorEnd', 'condition', 'caseCondition', 'switch', 'contextOperation', 'frontendForm', 'httpRequest', 'jsonParser'];
+  const nodeIds = new Set();
+  
+  // Validate nodes
+  data.nodes.forEach((node, index) => {
+    if (!node.id) {
+      errors.push(`Node at index ${index} is missing "id" field`);
+      return;
+    }
+    if (nodeIds.has(node.id)) {
+      errors.push(`Duplicate node ID: ${node.id}`);
+    }
+    nodeIds.add(node.id);
+    
+    if (!node.type) {
+      errors.push(`Node "${node.id}" is missing "type" field`);
+      return;
+    }
+    if (!validNodeTypes.includes(node.type)) {
+      errors.push(`Node "${node.id}" has invalid type: ${node.type}`);
+      return;
+    }
+    if (!node.position || typeof node.position.x !== 'number' || typeof node.position.y !== 'number') {
+      errors.push(`Node "${node.id}" has invalid or missing "position" field`);
+    }
+    if (!node.data || typeof node.data !== 'object') {
+      errors.push(`Node "${node.id}" has invalid or missing "data" field`);
+    }
+  });
+  
+  // Validate edges
+  data.edges.forEach((edge, index) => {
+    if (!edge.source || !edge.target) {
+      errors.push(`Edge at index ${index} is missing "source" or "target" field`);
+      return;
+    }
+    if (!nodeIds.has(edge.source)) {
+      errors.push(`Edge at index ${index} references non-existent source node: ${edge.source}`);
+    }
+    if (!nodeIds.has(edge.target)) {
+      errors.push(`Edge at index ${index} references non-existent target node: ${edge.target}`);
+    }
+  });
+  
+  // Check for at least one start node
+  const hasStartNode = data.nodes.some(node => node.type === 'start');
+  if (!hasStartNode) {
+    errors.push('Journey must have at least one start node');
+  }
+  
+  // Validate form schemas if present
+  if (data.formSchemas && typeof data.formSchemas === 'object') {
+    Object.entries(data.formSchemas).forEach(([nodeId, schema]) => {
+      if (!nodeIds.has(nodeId)) {
+        warnings.push(`Form schema found for non-existent node: ${nodeId}`);
+        return;
+      }
+      if (typeof schema !== 'object' || !Array.isArray(schema.elements)) {
+        warnings.push(`Invalid form schema structure for node: ${nodeId}`);
+      }
+    });
+  }
+  
+  // Validate node data consistency
+  data.nodes.forEach(node => {
+    if (node.type === 'caseCondition' && node.data?.conditions) {
+      if (!Array.isArray(node.data.conditions)) {
+        errors.push(`Node "${node.id}" (caseCondition) has invalid conditions array`);
+      }
+    }
+    if (node.type === 'switch' && node.data?.cases) {
+      if (!Array.isArray(node.data.cases)) {
+        errors.push(`Node "${node.id}" (switch) has invalid cases array`);
+      }
+    }
+  });
+  
+  return {
+    valid: errors.length === 0,
+    errors,
+    warnings
+  };
+};
+
 const initialJourney = loadJourney();
 const initialNodes = initialJourney.nodes;
 // Ensure all initial edges have interactionWidth for extended grab area
@@ -572,7 +730,7 @@ const initialEdges = initialJourney.edges.map(edge => ({
 }));
 const initialNextNodeId = initialJourney.nextNodeId;
 
-function InnerCanvas() {
+function InnerCanvas({ onExportReady, onImportReady }) {
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
   const [selectedElements, setSelectedElements] = useState([]);
@@ -596,6 +754,21 @@ function InnerCanvas() {
   const [activeContextOperationTab, setActiveContextOperationTab] = useState('details');
   const [formSchema, setFormSchema] = useState(null);
   const [selectedElementIndex, setSelectedElementIndex] = useState(null);
+  const [showImportModal, setShowImportModal] = useState(false);
+  const [showImportFileModal, setShowImportFileModal] = useState(false);
+  const [pendingImportData, setPendingImportData] = useState(null);
+  const fileInputRef = useRef(null);
+  const [dragActive, setDragActive] = useState(false);
+  const exportHandlerRef = useRef(null);
+  const importHandlerRef = useRef(null);
+  const handlersExposedRef = useRef(false);
+  const isMountedRef = useRef(false);
+  const isRegisteringHandlersRef = useRef(false);
+  const exportWrapperRef = useRef(null);
+  const importWrapperRef = useRef(null);
+  const registrationCompleteRef = useRef(false);
+  const exportReadyRef = useRef(false);
+  const importReadyRef = useRef(false);
   
   const selectedFrontendForm = nodes.find(n => n.id === activeFormNodeId);
   const selectedHttpNode = nodes.find(n => n.id === activeHttpNodeId);
@@ -1901,6 +2074,308 @@ function InnerCanvas() {
     }
   }, []);
 
+  // Export journey handler
+  const handleExport = useCallback(() => {
+    if (!isMountedRef.current) {
+      return;
+    }
+    exportJourney(nodes, edges, nextNodeId);
+  }, [nodes, edges, nextNodeId]);
+  
+  // Update export ref
+  React.useEffect(() => {
+    exportHandlerRef.current = handleExport;
+  }, [handleExport]);
+
+  // Perform the actual import
+  const performImport = useCallback((data) => {
+    try {
+      // Normalize nodes and edges
+      const normalizedNodes = data.nodes.map(node => ({
+        ...node,
+        selected: false,
+      }));
+      const normalizedEdges = data.edges.map(edge => ({
+        ...edge,
+        selected: false,
+        interactionWidth: edge.interactionWidth || 30,
+      }));
+      
+      // Update state
+      setNodes(normalizedNodes);
+      setEdges(normalizedEdges);
+      setNextNodeId(data.nextNodeId);
+      
+      // Clear all form schemas first
+      const frontendFormNodes = normalizedNodes.filter(n => n.type === 'frontendForm');
+      frontendFormNodes.forEach(node => {
+        const STORAGE_PREFIX = 'frontendFormSchema:';
+        localStorage.removeItem(STORAGE_PREFIX + node.id);
+      });
+      
+      // Restore form schemas
+      if (data.formSchemas && typeof data.formSchemas === 'object') {
+        Object.entries(data.formSchemas).forEach(([nodeId, schema]) => {
+          saveFormSchema(nodeId, schema);
+        });
+      }
+      
+      // Clear selection and active nodes
+      setSelectedElements([]);
+      setActiveFormNodeId(null);
+      setActiveHttpNodeId(null);
+      setActiveJsonParserNodeId(null);
+      setActiveConditionNodeId(null);
+      setActiveCaseConditionNodeId(null);
+      setActiveSwitchNodeId(null);
+      setActiveContextOperationNodeId(null);
+      
+      // Save to localStorage
+      saveJourney(normalizedNodes, normalizedEdges, data.nextNodeId);
+      
+      // Fit view after import
+      setTimeout(() => {
+        reactFlowInstance.fitView({ padding: 0.2 });
+      }, 100);
+      
+      alert('Journey imported successfully!');
+    } catch (error) {
+      console.error('Failed to import journey:', error);
+      alert(`Failed to import journey: ${error.message}`);
+    }
+  }, [setNodes, setEdges, setNextNodeId, reactFlowInstance]);
+
+  // Handle import confirmation
+  const handleImportConfirm = useCallback(() => {
+    if (pendingImportData) {
+      performImport(pendingImportData);
+      setPendingImportData(null);
+      setShowImportModal(false);
+    }
+  }, [pendingImportData, performImport]);
+
+  // Handle import cancel
+  const handleImportCancel = useCallback(() => {
+    setPendingImportData(null);
+    setShowImportModal(false);
+  }, []);
+
+  // Trigger file selection modal
+  const handleImportClick = useCallback(() => {
+    if (!isMountedRef.current) {
+      return;
+    }
+    setShowImportFileModal(true);
+  }, []);
+  
+  // Update import ref
+  React.useEffect(() => {
+    importHandlerRef.current = handleImportClick;
+  }, [handleImportClick]);
+
+  // Handle drag events
+  const handleDrag = useCallback((e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.type === 'dragenter' || e.type === 'dragover') {
+      setDragActive(true);
+    } else if (e.type === 'dragleave') {
+      setDragActive(false);
+    }
+  }, []);
+
+  // Handle file drop
+  const handleDrop = useCallback((e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragActive(false);
+
+    const files = e.dataTransfer?.files || e.target?.files;
+    const file = files?.[0];
+    if (!file || !file.name.endsWith('.json')) {
+      alert('Please select a valid JSON file');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      try {
+        const jsonText = event.target?.result;
+        if (!jsonText) {
+          alert('Failed to read file');
+          return;
+        }
+        const data = JSON.parse(jsonText);
+        
+        // Validate the imported data
+        const validation = validateJourneyData(data);
+        if (!validation.valid) {
+          alert(`Import validation failed:\n\n${validation.errors.join('\n')}`);
+          setShowImportFileModal(false);
+          return;
+        }
+        
+        // Show warnings if any
+        if (validation.warnings.length > 0) {
+          console.warn('Import warnings:', validation.warnings);
+        }
+        
+        // Check if current journey has content
+        const hasCurrentContent = nodes.length > 1 || (nodes.length === 1 && nodes[0].type !== 'start') || edges.length > 0;
+        
+        setShowImportFileModal(false);
+        
+        if (hasCurrentContent) {
+          // Show warning modal
+          setPendingImportData(data);
+          setShowImportModal(true);
+        } else {
+          // No current content, import directly
+          performImport(data);
+        }
+      } catch (error) {
+        console.error('Failed to parse JSON:', error);
+        alert(`Failed to parse JSON file: ${error.message}`);
+        setShowImportFileModal(false);
+      }
+    };
+    reader.onerror = () => {
+      alert('Failed to read file');
+      setShowImportFileModal(false);
+    };
+    reader.readAsText(file);
+  }, [nodes, edges, performImport]);
+
+  // Handle file input change
+  const handleFileInputChange = useCallback((e) => {
+    handleDrop(e);
+  }, [handleDrop]);
+
+  // Mark component as mounted
+  React.useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
+
+  // Expose export handler only - simple approach
+  React.useEffect(() => {
+    if (!isMountedRef.current) return;
+    if (!handleExport) return;
+    if (!onExportReady) return;
+    
+    console.log('Setting up export handler...');
+    
+    // Create a stable wrapper that checks before executing
+    const exportWrapper = () => {
+      console.log('Export wrapper called');
+      // Only allow execution if explicitly called (not during registration)
+      if (!exportReadyRef.current) {
+        console.log('Export blocked - not ready');
+        return;
+      }
+      if (!isMountedRef.current) {
+        console.log('Export blocked - not mounted');
+        return;
+      }
+      if (!exportHandlerRef.current) {
+        console.log('Export blocked - no handler');
+        return;
+      }
+      console.log('Export executing');
+      exportHandlerRef.current();
+    };
+    
+    // Store wrapper in ref
+    exportWrapperRef.current = exportWrapper;
+    
+    // Register with parent immediately
+    // Pass the wrapper function directly
+    if (onExportReady && typeof onExportReady === 'function') {
+      try {
+        // Register the wrapper
+        onExportReady(exportWrapper);
+        // Mark as ready AFTER registration completes using requestAnimationFrame
+        // to ensure it happens after the current render cycle
+        requestAnimationFrame(() => {
+          exportReadyRef.current = true;
+          console.log('Export handler registered with parent - SUCCESS');
+        });
+      } catch (error) {
+        console.error('Error registering export handler:', error);
+        exportReadyRef.current = false;
+      }
+    } else {
+      console.error('onExportReady is not a function:', typeof onExportReady);
+      exportReadyRef.current = false;
+    }
+    
+    // Cleanup: mark as not ready when effect re-runs
+    return () => {
+      exportReadyRef.current = false;
+    };
+  }, [onExportReady, handleExport]);
+
+  // Expose import handler - same approach as export
+  React.useEffect(() => {
+    if (!isMountedRef.current) return;
+    if (!handleImportClick) return;
+    if (!onImportReady) return;
+    
+    console.log('Setting up import handler...');
+    
+    // Create a stable wrapper that checks before executing
+    const importWrapper = () => {
+      console.log('Import wrapper called');
+      // Only allow execution if explicitly called (not during registration)
+      if (!importReadyRef.current) {
+        console.log('Import blocked - not ready');
+        return;
+      }
+      if (!isMountedRef.current) {
+        console.log('Import blocked - not mounted');
+        return;
+      }
+      if (!importHandlerRef.current) {
+        console.log('Import blocked - no handler');
+        return;
+      }
+      console.log('Import executing');
+      importHandlerRef.current();
+    };
+    
+    // Store wrapper in ref
+    importWrapperRef.current = importWrapper;
+    
+    // Register with parent immediately
+    // Pass the wrapper function directly
+    if (onImportReady && typeof onImportReady === 'function') {
+      try {
+        // Register the wrapper
+        onImportReady(importWrapper);
+        // Mark as ready AFTER registration completes using requestAnimationFrame
+        // to ensure it happens after the current render cycle
+        requestAnimationFrame(() => {
+          importReadyRef.current = true;
+          console.log('Import handler registered with parent - SUCCESS');
+        });
+      } catch (error) {
+        console.error('Error registering import handler:', error);
+        importReadyRef.current = false;
+      }
+    } else {
+      console.error('onImportReady is not a function:', typeof onImportReady);
+      importReadyRef.current = false;
+    }
+    
+    // Cleanup: mark as not ready when effect re-runs
+    return () => {
+      importReadyRef.current = false;
+    };
+  }, [onImportReady, handleImportClick]);
+
+
   return (
     <div 
       className="journey-canvas-container"
@@ -1954,7 +2429,6 @@ function InnerCanvas() {
         nodesConnectable={true}
         nodesFocusable={true}
         edgesFocusable={true}
-        selectOnClick={true}
         multiSelectionKeyCode="Meta"
         panOnScroll={true}
         panOnScrollMode="free"
@@ -2991,14 +3465,82 @@ function InnerCanvas() {
           </div>
         </div>
       )}
+
+      {/* Import File Selection Modal */}
+      {showImportFileModal && (
+        <div className="modal-overlay" onClick={() => setShowImportFileModal(false)}>
+          <div className="modal-dialog" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3>Import Journey</h3>
+            </div>
+            <div className="modal-body">
+              <div
+                className={`import-drop-zone ${dragActive ? 'drag-active' : ''}`}
+                onDragEnter={handleDrag}
+                onDragLeave={handleDrag}
+                onDragOver={handleDrag}
+                onDrop={handleDrop}
+              >
+                <span className="material-icons" style={{ fontSize: '48px', color: 'var(--color-primary-blue)', marginBottom: '16px' }}>cloud_upload</span>
+                <p style={{ marginBottom: '8px', fontWeight: 500 }}>Drag & drop a JSON file here</p>
+                <p style={{ fontSize: '12px', color: 'var(--color-gray-500)', marginBottom: '16px' }}>or</p>
+                <button
+                  className="btn-secondary"
+                  onClick={() => fileInputRef.current?.click()}
+                >
+                  <span className="material-icons">folder_open</span>
+                  Browse Files
+                </button>
+              </div>
+            </div>
+            <div className="modal-footer">
+              <button className="btn-secondary" onClick={() => setShowImportFileModal(false)}>
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Import Warning Modal */}
+      {showImportModal && (
+        <div className="modal-overlay" onClick={handleImportCancel}>
+          <div className="modal-dialog" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3>Confirm Import</h3>
+            </div>
+            <div className="modal-body">
+              <p>Importing a journey will overwrite your current work. This action cannot be undone.</p>
+              <p style={{ marginTop: '12px', fontWeight: 500 }}>Are you sure you want to continue?</p>
+            </div>
+            <div className="modal-footer">
+              <button className="btn-secondary" onClick={handleImportCancel}>
+                Cancel
+              </button>
+              <button className="btn-danger" onClick={handleImportConfirm}>
+                Confirm Import
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Hidden file input for import */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept=".json"
+        style={{ display: 'none' }}
+        onChange={handleFileInputChange}
+      />
     </div>
   );
 }
 
-export default function JourneyCanvas() {
+export default function JourneyCanvas({ onExportReady, onImportReady }) {
   return (
     <ReactFlowProvider>
-      <InnerCanvas />
+      <InnerCanvas onExportReady={onExportReady} onImportReady={onImportReady} />
     </ReactFlowProvider>
   );
 }

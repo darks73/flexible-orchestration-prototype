@@ -653,6 +653,37 @@ h4, .h4 {
     height: 100%;
 }
 
+.header-actions {
+    display: flex;
+    gap: var(--spacing-2);
+    align-items: center;
+}
+
+.header-btn {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-2);
+    padding: var(--spacing-2) var(--spacing-4);
+    background: var(--color-white);
+    border: 1px solid var(--color-blue-50);
+    border-radius: 4px;
+    font-family: 'Roboto', sans-serif;
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--color-primary-blue);
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.header-btn:hover {
+    background: var(--color-blue-50);
+    border-color: var(--color-primary-blue);
+}
+
+.header-btn .material-icons {
+    font-size: 20px;
+}
+
 .logo h1 {
     font-family: 'Roboto', sans-serif;
     font-size: 16px;
@@ -745,6 +776,99 @@ h4, .h4 {
 .sidesheet-footer .footer-right { 
     display: flex; 
     gap: var(--spacing-2); 
+}
+
+/* ============================================
+   MODAL - Style Guide
+   ============================================ */
+
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 2000;
+}
+
+.modal-dialog {
+    background: var(--color-white);
+    border-radius: 4px;
+    box-shadow: 0px 2px 4px 0px rgba(1, 5, 50, 0.04), 
+                0px 4px 5px 0px rgba(1, 5, 50, 0.04), 
+                0px 1px 10px 0px rgba(1, 5, 50, 0.08);
+    width: 480px;
+    max-width: 90vw;
+    display: flex;
+    flex-direction: column;
+}
+
+.modal-header {
+    padding: var(--spacing-4) var(--spacing-6);
+    border-bottom: 1px solid var(--color-blue-50);
+}
+
+.modal-header h3 {
+    font-family: 'Roboto', sans-serif;
+    font-size: 20px;
+    font-weight: 700;
+    line-height: 28px;
+    color: var(--color-primary-blue);
+    margin: 0;
+}
+
+.modal-body {
+    padding: var(--spacing-4) var(--spacing-6);
+    flex: 1;
+}
+
+.modal-body p {
+    font-family: 'Roboto', sans-serif;
+    font-size: 14px;
+    line-height: 20px;
+    color: var(--color-gray-900);
+    margin: 0;
+}
+
+.modal-footer {
+    padding: var(--spacing-3) var(--spacing-6);
+    border-top: 1px solid var(--color-blue-50);
+    display: flex;
+    justify-content: flex-end;
+    gap: var(--spacing-2);
+}
+
+.import-drop-zone {
+    border: 2px dashed var(--color-blue-50);
+    border-radius: 4px;
+    padding: var(--spacing-8);
+    text-align: center;
+    background: var(--color-gray-25);
+    transition: all 0.2s ease;
+    cursor: pointer;
+}
+
+.import-drop-zone:hover {
+    border-color: var(--color-primary-blue);
+    background: var(--color-blue-50);
+}
+
+.import-drop-zone.drag-active {
+    border-color: var(--color-primary-blue);
+    background: var(--color-blue-50);
+    border-style: solid;
+}
+
+.import-drop-zone p {
+    margin: 0;
+}
+
+.import-drop-zone .material-icons {
+    display: block;
 }
 
 /* ============================================
