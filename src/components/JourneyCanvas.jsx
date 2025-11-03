@@ -52,7 +52,10 @@ const StartNode = ({ data, selected }) => (
 
 const FrontendFormNode = ({ data, selected }) => (
   <div className={`frontend-form-node ${selected ? 'selected' : ''}`}>
-    <div className="frontend-form-title">{data.label || 'Frontend - Form'}</div>
+    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+      <span className="material-icons" style={{ fontSize: '20px', color: '#041295' }}>widgets</span>
+      <div className="frontend-form-title">{data.label || 'Frontend - Form'}</div>
+    </div>
     <div className="frontend-form-subtitle">Form</div>
     {/* Input */}
     <Handle
@@ -141,7 +144,10 @@ const ErrorEndNode = ({ data, selected }) => (
 const ConditionNode = ({ data, selected }) => (
   <div className={`journey-condition-node ${selected ? 'selected' : ''}`}>
     <div className="condition-diamond">
-      <div className="condition-content">{data.label || 'Condition'}</div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+        <span className="material-icons" style={{ fontSize: '18px' }}>help_outline</span>
+        <div className="condition-content">{data.label || 'Condition'}</div>
+      </div>
     </div>
     <Handle
       type="target"
@@ -190,7 +196,10 @@ const ConditionNode = ({ data, selected }) => (
 
 const HttpBackendNode = ({ data, selected }) => (
   <div className={`frontend-form-node ${selected ? 'selected' : ''}`}>
-    <div className="frontend-form-title">{data.label || 'HTTP Request'}</div>
+    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+      <span className="material-icons" style={{ fontSize: '20px', color: '#041295' }}>http</span>
+      <div className="frontend-form-title">{data.label || 'HTTP Request'}</div>
+    </div>
     <div className="frontend-form-subtitle">{data.nodeType === 'backend' ? 'Backend' : 'Frontend'}</div>
     {/* Input */}
     <Handle
@@ -242,7 +251,10 @@ const HttpBackendNode = ({ data, selected }) => (
 
 const JsonParserNode = ({ data, selected }) => (
   <div className={`frontend-form-node ${selected ? 'selected' : ''}`}>
-    <div className="frontend-form-title">{data.label || 'JSON Parser'}</div>
+    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+      <span className="material-icons" style={{ fontSize: '20px', color: '#041295' }}>data_object</span>
+      <div className="frontend-form-title">{data.label || 'JSON Parser'}</div>
+    </div>
     <div className="frontend-form-subtitle">Parser</div>
     {/* Input */}
     <Handle
@@ -298,7 +310,10 @@ const CaseConditionNode = ({ data, selected }) => {
   
   return (
     <div className={`frontend-form-node ${selected ? 'selected' : ''}`} style={{ minHeight: '120px' }}>
-      <div className="frontend-form-title">{data.label || 'Switch'}</div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+        <span className="material-icons" style={{ fontSize: '20px', color: '#041295' }}>call_split</span>
+        <div className="frontend-form-title">{data.label || 'Switch'}</div>
+      </div>
       <div className="frontend-form-subtitle">Condition</div>
       {/* Input */}
       <Handle
