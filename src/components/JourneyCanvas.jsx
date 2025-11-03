@@ -144,7 +144,7 @@ const ErrorEndNode = ({ data, selected }) => (
 const ConditionNode = ({ data, selected }) => (
   <div className={`journey-condition-node ${selected ? 'selected' : ''}`}>
     <div className="condition-diamond">
-      <div className="condition-content">{data.label || 'Condition'}</div>
+      <div className="condition-content">{data.label || 'Simple Condition'}</div>
     </div>
     <Handle
       type="target"
@@ -309,7 +309,7 @@ const CaseConditionNode = ({ data, selected }) => {
     <div className={`frontend-form-node ${selected ? 'selected' : ''}`} style={{ minHeight: '120px' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
         <span className="material-icons" style={{ fontSize: '20px', color: '#041295' }}>call_split</span>
-        <div className="frontend-form-title">{data.label || 'Switch'}</div>
+        <div className="frontend-form-title">{data.label || 'Multiple Conditions'}</div>
       </div>
       <div className="frontend-form-subtitle">Condition</div>
       {/* Input */}
@@ -371,6 +371,74 @@ const CaseConditionNode = ({ data, selected }) => {
   );
 };
 
+const SwitchNode = ({ data, selected }) => {
+  const cases = data?.cases || [];
+  
+  return (
+    <div className={`frontend-form-node ${selected ? 'selected' : ''}`} style={{ minHeight: '120px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+        <span className="material-icons" style={{ fontSize: '20px', color: '#041295' }}>shuffle</span>
+        <div className="frontend-form-title">{data.label || 'Switch'}</div>
+      </div>
+      <div className="frontend-form-subtitle">Switch</div>
+      {/* Input */}
+      <Handle
+        type="target"
+        position={Position.Left}
+        id="input"
+        style={{ 
+          background: '#041295', // var(--color-primary-blue)
+          border: '2px solid white',
+          width: '8px',
+          height: '8px',
+          left: '-4px',
+          top: '50%',
+          transform: 'translateY(-50%)'
+        }}
+      />
+      {/* Dynamic output handles for each case */}
+      {cases.map((caseItem, idx) => {
+        const totalOutputs = cases.length + 1; // cases + default
+        const baseOffset = 15;
+        const range = 70;
+        const topPercent = baseOffset + (idx * (range / totalOutputs));
+        return (
+          <Handle
+            key={`case-${idx}`}
+            type="source"
+            position={Position.Right}
+            id={`switch-${idx}`}
+            style={{ 
+              background: '#9C27B0', // purple for switch cases
+              border: '2px solid white',
+              width: '8px',
+              height: '8px',
+              right: '-4px',
+              top: `${topPercent}%`,
+              transform: 'translateY(-50%)'
+            }}
+          />
+        );
+      })}
+      {/* Default handle - always last */}
+      <Handle
+        type="source"
+        position={Position.Right}
+        id="default"
+        style={{ 
+          background: '#9E9E9E', // Gray for default
+          border: '2px solid white',
+          width: '8px',
+          height: '8px',
+          right: '-4px',
+          top: `${85}%`,
+          transform: 'translateY(-50%)'
+        }}
+      />
+    </div>
+  );
+};
+
 // Node types configuration
 const nodeTypes = {
   start: StartNode,
@@ -378,6 +446,7 @@ const nodeTypes = {
   errorEnd: ErrorEndNode,
   condition: ConditionNode,
   caseCondition: CaseConditionNode,
+  switch: SwitchNode,
   frontendForm: FrontendFormNode,
   httpRequest: HttpBackendNode,
   jsonParser: JsonParserNode,
@@ -527,6 +596,7 @@ function InnerCanvas() {
   const [activeJsonParserNodeId, setActiveJsonParserNodeId] = useState(null);
   const [activeConditionNodeId, setActiveConditionNodeId] = useState(null);
   const [activeCaseConditionNodeId, setActiveCaseConditionNodeId] = useState(null);
+  const [activeSwitchNodeId, setActiveSwitchNodeId] = useState(null);
   const reactFlowInstance = useReactFlow();
   const canvasRef = useRef(null);
   const [activeTab, setActiveTab] = useState('details');
@@ -534,6 +604,7 @@ function InnerCanvas() {
   const [activeJsonParserTab, setActiveJsonParserTab] = useState('details');
   const [activeConditionTab, setActiveConditionTab] = useState('details');
   const [activeCaseConditionTab, setActiveCaseConditionTab] = useState('details');
+  const [activeSwitchTab, setActiveSwitchTab] = useState('details');
   const [formSchema, setFormSchema] = useState(null);
   const [selectedElementIndex, setSelectedElementIndex] = useState(null);
   
@@ -542,6 +613,7 @@ function InnerCanvas() {
   const selectedJsonParserNode = nodes.find(n => n.id === activeJsonParserNodeId);
   const selectedConditionNode = nodes.find(n => n.id === activeConditionNodeId);
   const selectedCaseConditionNode = nodes.find(n => n.id === activeCaseConditionNodeId);
+  const selectedSwitchNode = nodes.find(n => n.id === activeSwitchNodeId);
 
   // hydrate schema when selection changes
   React.useEffect(() => {
@@ -580,13 +652,21 @@ function InnerCanvas() {
     setActiveConditionTab(savedTab === 'condition' ? 'condition' : 'details');
   }, [selectedConditionNode?.id]);
 
-  // hydrate Switch node tab when selection changes
+  // hydrate Multiple Conditions node tab when selection changes
   React.useEffect(() => {
     if (!selectedCaseConditionNode) return;
     // restore active tab from localStorage
     const savedTab = localStorage.getItem(`sidesheetTab:${selectedCaseConditionNode.id}`);
     setActiveCaseConditionTab(savedTab === 'cases' ? 'cases' : 'details');
   }, [selectedCaseConditionNode?.id]);
+
+  // hydrate Switch node tab when selection changes
+  React.useEffect(() => {
+    if (!selectedSwitchNode) return;
+    // restore active tab from localStorage
+    const savedTab = localStorage.getItem(`sidesheetTab:${selectedSwitchNode.id}`);
+    setActiveSwitchTab(savedTab === 'cases' ? 'cases' : 'details');
+  }, [selectedSwitchNode?.id]);
 
   // Update edge labels when case condition data changes
   React.useEffect(() => {
@@ -598,6 +678,28 @@ function InnerCanvas() {
           const sourceNode = nodes.find(n => n.id === edge.source);
           const condition = sourceNode?.data?.conditions?.[caseIndex];
           const newLabel = condition ? `${condition.condition} ${condition.operator} ${condition.value}` : `case ${caseIndex}`;
+          if (edge.label !== newLabel) {
+            return { ...edge, label: newLabel };
+          }
+        }
+        return edge;
+      });
+      // Only update if there were actual changes
+      const hasChanges = updated.some((e, idx) => e.label !== eds[idx].label);
+      return hasChanges ? updated : eds;
+    });
+  }, [nodes, setEdges]);
+
+  // Update edge labels when switch data changes
+  React.useEffect(() => {
+    // Update all edges from switch nodes with their current case labels
+    setEdges((eds) => {
+      const updated = eds.map(edge => {
+        if (edge.sourceHandle?.startsWith('switch-')) {
+          const caseIndex = parseInt(edge.sourceHandle.replace('switch-', ''), 10);
+          const sourceNode = nodes.find(n => n.id === edge.source);
+          const caseItem = sourceNode?.data?.cases?.[caseIndex];
+          const newLabel = caseItem ? `${caseItem.value}` : `case ${caseIndex}`;
           if (edge.label !== newLabel) {
             return { ...edge, label: newLabel };
           }
@@ -651,6 +753,10 @@ function InnerCanvas() {
           originalColor = '#FF9800'; // Orange for case conditions
         } else if (edge.sourceHandle === 'else') {
           originalColor = '#9E9E9E'; // Gray for else/default
+        } else if (edge.sourceHandle?.startsWith('switch-')) {
+          originalColor = '#9C27B0'; // Purple for switch cases
+        } else if (edge.sourceHandle === 'default') {
+          originalColor = '#9E9E9E'; // Gray for default
         }
         
         if (edge.selected) {
@@ -903,6 +1009,7 @@ function InnerCanvas() {
     setActiveJsonParserNodeId(null);
     setActiveConditionNodeId(null);
     setActiveCaseConditionNodeId(null);
+    setActiveSwitchNodeId(null);
   }, [setNodes]);
 
   const deleteSelectedFrontendForm = useCallback(() => {
@@ -1021,6 +1128,69 @@ function InnerCanvas() {
       return node;
     }));
   }, [activeCaseConditionNodeId, setNodes]);
+
+  // Update handlers for Switch node
+  const deleteSelectedSwitchNode = useCallback(() => {
+    const nodeId = activeSwitchNodeId;
+    if (!nodeId) return;
+    // Remove node and connected edges
+    setNodes((nds) => nds.filter(n => n.id !== nodeId));
+    setEdges((eds) => eds.filter(e => e.source !== nodeId && e.target !== nodeId));
+    setSelectedElements([]);
+    setActiveSwitchNodeId(null);
+  }, [activeSwitchNodeId, setNodes, setEdges]);
+
+  const updateSwitchProperty = useCallback((property, value) => {
+    setNodes((nds) => nds.map(node => {
+      if (node.id === activeSwitchNodeId) {
+        return { ...node, data: { ...node.data, [property]: value } };
+      }
+      return node;
+    }));
+  }, [activeSwitchNodeId, setNodes]);
+
+  const addSwitchCase = useCallback(() => {
+    setNodes((nds) => nds.map(node => {
+      if (node.id === activeSwitchNodeId) {
+        const cases = [...(node.data?.cases || [])];
+        cases.push({
+          id: `switch-case-${Date.now()}`,
+          value: '',
+        });
+        return { ...node, data: { ...node.data, cases } };
+      }
+      return node;
+    }));
+  }, [activeSwitchNodeId, setNodes]);
+
+  const removeSwitchCase = useCallback((index) => {
+    setNodes((nds) => nds.map(node => {
+      if (node.id === activeSwitchNodeId) {
+        const cases = [...(node.data?.cases || [])];
+        cases.splice(index, 1);
+        return { ...node, data: { ...node.data, cases } };
+      }
+      return node;
+    }));
+    // Remove edges connected to this case
+    setEdges((eds) => {
+      const casePrefix = `switch-${index}`;
+      return eds.filter(e => !(e.source === activeSwitchNodeId && e.sourceHandle === casePrefix));
+    });
+  }, [activeSwitchNodeId, setNodes, setEdges]);
+
+  const updateSwitchCase = useCallback((index, field, value) => {
+    setNodes((nds) => nds.map(node => {
+      if (node.id === activeSwitchNodeId) {
+        const cases = [...(node.data?.cases || [])];
+        if (cases[index]) {
+          cases[index] = { ...cases[index], [field]: value };
+        }
+        return { ...node, data: { ...node.data, cases } };
+      }
+      return node;
+    }));
+  }, [activeSwitchNodeId, setNodes]);
 
   // Editor operations
   const genGuid = () => 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
@@ -1226,8 +1396,9 @@ function InnerCanvas() {
     let label = 'Node';
     if (nodeType === 'successEnd') label = 'Success';
     if (nodeType === 'errorEnd') label = 'Error';
-    if (nodeType === 'condition') label = 'Condition';
-    if (nodeType === 'caseCondition') label = 'Switch';
+    if (nodeType === 'condition') label = 'Simple Condition';
+    if (nodeType === 'caseCondition') label = 'Multiple Conditions';
+    if (nodeType === 'switch') label = 'Switch';
     if (nodeType === 'frontendForm') label = 'Frontend - Form';
     if (nodeType === 'httpRequest') label = 'HTTP Request';
     if (nodeType === 'jsonParser') label = 'JSON Parser';
@@ -1273,6 +1444,10 @@ function InnerCanvas() {
       } : nodeType === 'caseCondition' ? {
         label,
         conditions: [],
+      } : nodeType === 'switch' ? {
+        label,
+        expression: '',
+        cases: [],
       } : { label },
       selected: false,
     };
@@ -1338,6 +1513,19 @@ function InnerCanvas() {
       } else if (params.sourceHandle === 'else') {
         edgeColor = '#9E9E9E'; // Gray for else/default
         edgeLabel = 'else';
+      } else if (params.sourceHandle?.startsWith('switch-')) {
+        edgeColor = '#9C27B0'; // Purple for switch cases
+        const caseIndex = params.sourceHandle.replace('switch-', '');
+        const sourceNode = nodes.find(n => n.id === params.source);
+        const caseItem = sourceNode?.data?.cases?.[parseInt(caseIndex, 10)];
+        if (caseItem) {
+          edgeLabel = `${caseItem.value}`;
+        } else {
+          edgeLabel = `case ${caseIndex}`;
+        }
+      } else if (params.sourceHandle === 'default') {
+        edgeColor = '#9E9E9E'; // Gray for default
+        edgeLabel = 'default';
       }
       
       // Create the new edge with arrow styling
@@ -1435,6 +1623,19 @@ function InnerCanvas() {
       } else if (newConnection.sourceHandle === 'else') {
         edgeColor = '#9E9E9E'; // Gray for else/default
         edgeLabel = 'else';
+      } else if (newConnection.sourceHandle?.startsWith('switch-')) {
+        edgeColor = '#9C27B0'; // Purple for switch cases
+        const caseIndex = newConnection.sourceHandle.replace('switch-', '');
+        const sourceNode = nodes.find(n => n.id === newConnection.source);
+        const caseItem = sourceNode?.data?.cases?.[parseInt(caseIndex, 10)];
+        if (caseItem) {
+          edgeLabel = `${caseItem.value}`;
+        } else {
+          edgeLabel = `case ${caseIndex}`;
+        }
+      } else if (newConnection.sourceHandle === 'default') {
+        edgeColor = '#9E9E9E'; // Gray for default
+        edgeLabel = 'default';
       }
 
       // Update the edge with new connection, preserving some properties
@@ -1520,11 +1721,13 @@ function InnerCanvas() {
     const activeJsonParser = selectedNodes.find(n => n.type === 'jsonParser');
     const activeCondition = selectedNodes.find(n => n.type === 'condition');
     const activeCaseCondition = selectedNodes.find(n => n.type === 'caseCondition');
+    const activeSwitch = selectedNodes.find(n => n.type === 'switch');
     setActiveFormNodeId(activeForm ? activeForm.id : null);
     setActiveHttpNodeId(activeHttp ? activeHttp.id : null);
     setActiveJsonParserNodeId(activeJsonParser ? activeJsonParser.id : null);
     setActiveConditionNodeId(activeCondition ? activeCondition.id : null);
     setActiveCaseConditionNodeId(activeCaseCondition ? activeCaseCondition.id : null);
+    setActiveSwitchNodeId(activeSwitch ? activeSwitch.id : null);
     
     // Ensure edges are only selected if explicitly clicked, not automatically when nodes are selected
     setEdges((eds) => {
@@ -1720,11 +1923,17 @@ function InnerCanvas() {
               <div className="node-menu-icon frontend-form-icon">
                 <span className="material-icons">help_outline</span>
               </div>
-              <span>Condition</span>
+              <span>Simple Condition</span>
             </div>
             <div className="node-menu-item" onClick={() => addNode('caseCondition')}>
               <div className="node-menu-icon frontend-form-icon">
                 <span className="material-icons">call_split</span>
+              </div>
+              <span>Multiple Conditions</span>
+            </div>
+            <div className="node-menu-item" onClick={() => addNode('switch')}>
+              <div className="node-menu-icon frontend-form-icon">
+                <span className="material-icons">shuffle</span>
               </div>
               <span>Switch</span>
             </div>
@@ -1759,7 +1968,7 @@ function InnerCanvas() {
           onPointerDown={(e) => e.stopPropagation()}
         >
           <div className="sidesheet-header">
-            <div className="sidesheet-title">Condition</div>
+            <div className="sidesheet-title">Simple Condition</div>
           </div>
           <div className="sidesheet-tabs">
             <button className={`tab-btn ${activeConditionTab==='details'?'active':''}`} onClick={()=>{
@@ -1781,7 +1990,7 @@ function InnerCanvas() {
                   type="text"
                   value={selectedConditionNode.data?.label || ''}
                   onChange={(e) => updateConditionProperty('label', e.target.value)}
-                  placeholder="Condition"
+                  placeholder="Simple Condition"
                 />
               </div>
             )}
@@ -1851,7 +2060,7 @@ function InnerCanvas() {
         </div>
       )}
 
-      {/* Sidesheet for Switch */}
+      {/* Sidesheet for Multiple Conditions */}
       {selectedCaseConditionNode && (
         <div 
           className="sidesheet"
@@ -1860,7 +2069,7 @@ function InnerCanvas() {
           onPointerDown={(e) => e.stopPropagation()}
         >
           <div className="sidesheet-header">
-            <div className="sidesheet-title">Switch</div>
+            <div className="sidesheet-title">Multiple Conditions</div>
           </div>
           <div className="sidesheet-tabs">
             <button className={`tab-btn ${activeCaseConditionTab==='details'?'active':''}`} onClick={()=>{
@@ -1882,7 +2091,7 @@ function InnerCanvas() {
                   type="text"
                   value={selectedCaseConditionNode.data?.label || ''}
                   onChange={(e) => updateCaseConditionProperty('label', e.target.value)}
-                  placeholder="Switch"
+                  placeholder="Multiple Conditions"
                 />
               </div>
             )}
@@ -1956,6 +2165,100 @@ function InnerCanvas() {
           <div className="sidesheet-footer">
             <div className="footer-left">
               <button className="btn-danger" onClick={deleteSelectedCaseConditionNode}>Delete</button>
+            </div>
+            <div className="footer-right">
+              <button className="btn-secondary" onClick={closeSidesheet}>Close</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Sidesheet for Switch */}
+      {selectedSwitchNode && (
+        <div 
+          className="sidesheet"
+          onMouseDown={(e) => e.stopPropagation()}
+          onClick={(e) => e.stopPropagation()}
+          onPointerDown={(e) => e.stopPropagation()}
+        >
+          <div className="sidesheet-header">
+            <div className="sidesheet-title">Switch</div>
+          </div>
+          <div className="sidesheet-tabs">
+            <button className={`tab-btn ${activeSwitchTab==='details'?'active':''}`} onClick={()=>{
+              setActiveSwitchTab('details');
+              if (selectedSwitchNode?.id) localStorage.setItem(`sidesheetTab:${selectedSwitchNode.id}`, 'details');
+            }}>Details</button>
+            <button className={`tab-btn ${activeSwitchTab==='cases'?'active':''}`} onClick={()=>{
+              setActiveSwitchTab('cases');
+              if (selectedSwitchNode?.id) localStorage.setItem(`sidesheetTab:${selectedSwitchNode.id}`, 'cases');
+            }}>Cases</button>
+          </div>
+          <div className="sidesheet-body">
+            {activeSwitchTab === 'details' && (
+              <div>
+                <label className="input-label" htmlFor="switch-name">Name</label>
+                <input
+                  id="switch-name"
+                  className="text-input"
+                  type="text"
+                  value={selectedSwitchNode.data?.label || ''}
+                  onChange={(e) => updateSwitchProperty('label', e.target.value)}
+                  placeholder="Switch"
+                />
+                <div style={{ height: '12px' }} />
+                <label className="input-label" htmlFor="switch-expression">Expression</label>
+                <input
+                  id="switch-expression"
+                  className="text-input"
+                  type="text"
+                  value={selectedSwitchNode.data?.expression || ''}
+                  onChange={(e) => updateSwitchProperty('expression', e.target.value)}
+                  placeholder="e.g., ${httpResponse.statusCode} or ${myVariable}"
+                />
+                <div style={{ height: '12px' }} />
+                <div style={{ fontSize: '12px', color: 'var(--color-gray-600)', backgroundColor: 'var(--color-gray-50)', padding: '12px', borderRadius: '4px' }}>
+                  <strong>Switch Expression:</strong> Define the variable or expression to evaluate against case values.
+                </div>
+              </div>
+            )}
+            {activeSwitchTab === 'cases' && (
+              <div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                  <label className="input-label" style={{ margin: 0 }}>Cases</label>
+                  <button className="btn-secondary" onClick={addSwitchCase} style={{ padding: '4px 8px', fontSize: '12px' }}>
+                    Add Case
+                  </button>
+                </div>
+                <div style={{ fontSize: '12px', color: 'var(--color-gray-500)', marginBottom: '12px' }}>
+                  Define case values for each egress path. Default path is executed if expression value doesn't match any case.
+                </div>
+                {(selectedSwitchNode.data?.cases || []).map((caseItem, idx) => (
+                  <div key={idx} style={{ border: '1px solid var(--color-gray-300)', borderRadius: '4px', padding: '12px', marginBottom: '12px' }}>
+                    <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                      <input
+                        className="text-input"
+                        style={{ flex: 1 }}
+                        type="text"
+                        value={caseItem.value || ''}
+                        onChange={(e) => updateSwitchCase(idx, 'value', e.target.value)}
+                        placeholder="Case value (e.g., 200, 404, error)"
+                      />
+                      <button className="btn-danger" onClick={() => removeSwitchCase(idx)} style={{ padding: '4px 12px', fontSize: '12px' }}>
+                        Remove
+                      </button>
+                    </div>
+                  </div>
+                ))}
+                <div style={{ fontSize: '13px', color: 'var(--color-gray-600)', backgroundColor: 'var(--color-gray-100)', padding: '12px', borderRadius: '4px', border: '2px dashed var(--color-gray-300)' }}>
+                  <strong>Default (Optional):</strong> The default path is always available and executes when no case matches.
+                </div>
+              </div>
+            )}
+          </div>
+          <div className="sidesheet-footer">
+            <div className="footer-left">
+              <button className="btn-danger" onClick={deleteSelectedSwitchNode}>Delete</button>
             </div>
             <div className="footer-right">
               <button className="btn-secondary" onClick={closeSidesheet}>Close</button>
