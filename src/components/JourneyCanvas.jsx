@@ -316,22 +316,30 @@ const CaseConditionNode = ({ data, selected }) => {
         }}
       />
       {/* Dynamic output handles for each condition */}
-      {conditions.map((condition, idx) => (
-        <Handle
-          key={`condition-${idx}`}
-          type="source"
-          position={Position.Right}
-          id={`case-${idx}`}
-          style={{ 
-            background: '#FF9800', // orange for case conditions
-            border: '2px solid white',
-            width: '8px',
-            height: '8px',
-            right: '-4px',
-            top: `${20 + (idx * (50 / (conditions.length + 1)))}%`,
-          }}
-        />
-      ))}
+      {conditions.map((condition, idx) => {
+        // Distribute handles evenly, similar to FrontendFormNode style (35% and 65%)
+        const totalOutputs = conditions.length + 1; // conditions + else
+        const baseOffset = 15; // start from 15% to have space from top
+        const range = 70; // use 70% of height for distribution
+        const topPercent = baseOffset + (idx * (range / totalOutputs));
+        return (
+          <Handle
+            key={`condition-${idx}`}
+            type="source"
+            position={Position.Right}
+            id={`case-${idx}`}
+            style={{ 
+              background: '#FF9800', // orange for case conditions
+              border: '2px solid white',
+              width: '8px',
+              height: '8px',
+              right: '-4px',
+              top: `${topPercent}%`,
+              transform: 'translateY(-50%)'
+            }}
+          />
+        );
+      })}
       {/* Else handle - always last */}
       <Handle
         type="source"
@@ -343,7 +351,8 @@ const CaseConditionNode = ({ data, selected }) => {
           width: '8px',
           height: '8px',
           right: '-4px',
-          top: `${70 + (conditions.length * (50 / (conditions.length + 1)))}%`,
+          top: `${85}%`,
+          transform: 'translateY(-50%)'
         }}
       />
     </div>
@@ -576,7 +585,7 @@ function InnerCanvas() {
           const caseIndex = parseInt(edge.sourceHandle.replace('case-', ''), 10);
           const sourceNode = nodes.find(n => n.id === edge.source);
           const condition = sourceNode?.data?.conditions?.[caseIndex];
-          const newLabel = condition?.condition || `case ${caseIndex}`;
+          const newLabel = condition ? `${condition.condition} ${condition.operator} ${condition.value}` : `case ${caseIndex}`;
           if (edge.label !== newLabel) {
             return { ...edge, label: newLabel };
           }
@@ -1309,7 +1318,11 @@ function InnerCanvas() {
         const caseIndex = params.sourceHandle.replace('case-', '');
         const sourceNode = nodes.find(n => n.id === params.source);
         const condition = sourceNode?.data?.conditions?.[parseInt(caseIndex, 10)];
-        edgeLabel = condition?.condition || `case ${caseIndex}`;
+        if (condition) {
+          edgeLabel = `${condition.condition} ${condition.operator} ${condition.value}`;
+        } else {
+          edgeLabel = `case ${caseIndex}`;
+        }
       } else if (params.sourceHandle === 'else') {
         edgeColor = '#9E9E9E'; // Gray for else/default
         edgeLabel = 'else';
@@ -1402,7 +1415,11 @@ function InnerCanvas() {
         const caseIndex = newConnection.sourceHandle.replace('case-', '');
         const sourceNode = nodes.find(n => n.id === newConnection.source);
         const condition = sourceNode?.data?.conditions?.[parseInt(caseIndex, 10)];
-        edgeLabel = condition?.condition || `case ${caseIndex}`;
+        if (condition) {
+          edgeLabel = `${condition.condition} ${condition.operator} ${condition.value}`;
+        } else {
+          edgeLabel = `case ${caseIndex}`;
+        }
       } else if (newConnection.sourceHandle === 'else') {
         edgeColor = '#9E9E9E'; // Gray for else/default
         edgeLabel = 'else';
