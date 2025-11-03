@@ -646,7 +646,7 @@ function InnerCanvas() {
         if (edge.sourceHandle === 'success' || edge.sourceHandle === 'yes') {
           originalColor = '#00BBDD'; // Success green
         } else if (edge.sourceHandle === 'error' || edge.sourceHandle === 'no') {
-          originalColor = '#F5D4D4'; // Toned down error color
+          originalColor = '#C62828'; // Darker error color
         } else if (edge.sourceHandle?.startsWith('case-')) {
           originalColor = '#FF9800'; // Orange for case conditions
         } else if (edge.sourceHandle === 'else') {
@@ -1317,13 +1317,13 @@ function InnerCanvas() {
         edgeColor = '#00BBDD'; // Green for true - var(--color-success-green)
         edgeLabel = 'true';
       } else if (params.sourceHandle === 'no') {
-        edgeColor = '#F5D4D4'; // Toned down error color - approximates rgba(224, 30, 0, 0.1) background tone of error node
+        edgeColor = '#C62828'; // Darker error color - approximates rgba(224, 30, 0, 0.1) background tone of error node
         edgeLabel = 'false';
       } else if (params.sourceHandle === 'success') {
         edgeColor = '#00BBDD'; // var(--color-success-green)
         edgeLabel = 'success';
       } else if (params.sourceHandle === 'error') {
-        edgeColor = '#F5D4D4'; // Toned down error color - approximates rgba(224, 30, 0, 0.1) background tone of error node
+        edgeColor = '#C62828'; // Darker error color - approximates rgba(224, 30, 0, 0.1) background tone of error node
         edgeLabel = 'error';
       } else if (params.sourceHandle?.startsWith('case-')) {
         edgeColor = '#FF9800'; // Orange for case conditions
@@ -1414,13 +1414,13 @@ function InnerCanvas() {
         edgeColor = '#00BBDD'; // Green for true - var(--color-success-green)
         edgeLabel = 'true';
       } else if (newConnection.sourceHandle === 'no') {
-        edgeColor = '#F5D4D4'; // Toned down error color
+        edgeColor = '#C62828'; // Darker error color
         edgeLabel = 'false';
       } else if (newConnection.sourceHandle === 'success') {
         edgeColor = '#00BBDD'; // var(--color-success-green)
         edgeLabel = 'success';
       } else if (newConnection.sourceHandle === 'error') {
-        edgeColor = '#F5D4D4'; // Toned down error color
+        edgeColor = '#C62828'; // Darker error color
         edgeLabel = 'error';
       } else if (newConnection.sourceHandle?.startsWith('case-')) {
         edgeColor = '#FF9800'; // Orange for case conditions
