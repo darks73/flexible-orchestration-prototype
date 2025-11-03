@@ -465,36 +465,9 @@ const loadJourney = () => {
           position: { x: 100, y: 250 },
           data: { label: 'Start' },
         },
-        {
-          id: '2',
-          type: 'successEnd',
-          position: { x: 500, y: 250 },
-          data: { label: 'Success' },
-        },
       ],
-      edges: savedEdges ? JSON.parse(savedEdges) : [
-        {
-          id: 'e1-2',
-          source: '1',
-          target: '2',
-          sourceHandle: 'right',
-          targetHandle: 'left',
-          type: 'default',
-          style: { 
-            stroke: '#041295', // var(--color-primary-blue)
-            strokeWidth: 2 
-          },
-          markerEnd: {
-            type: 'arrowclosed',
-            color: '#041295', // var(--color-primary-blue)
-            width: 20,
-            height: 20,
-          },
-          interactionWidth: 30, // Extended grab area including arrowhead
-          selected: false,
-        },
-      ],
-      nextNodeId: savedNextId ? Number(savedNextId) : 3,
+      edges: savedEdges ? JSON.parse(savedEdges) : [],
+      nextNodeId: savedNextId ? Number(savedNextId) : 2,
     };
   } catch (e) {
     console.warn('Failed to load journey', e);
@@ -506,36 +479,9 @@ const loadJourney = () => {
           position: { x: 100, y: 250 },
           data: { label: 'Start' },
         },
-        {
-          id: '2',
-          type: 'successEnd',
-          position: { x: 500, y: 250 },
-          data: { label: 'Success' },
-        },
       ],
-      edges: [
-        {
-          id: 'e1-2',
-          source: '1',
-          target: '2',
-          sourceHandle: 'right',
-          targetHandle: 'left',
-          type: 'default',
-          style: { 
-            stroke: '#041295', // var(--color-primary-blue)
-            strokeWidth: 2 
-          },
-          markerEnd: {
-            type: 'arrowclosed',
-            color: '#041295', // var(--color-primary-blue)
-            width: 20,
-            height: 20,
-          },
-          interactionWidth: 30, // Extended grab area including arrowhead
-          selected: false,
-        },
-      ],
-      nextNodeId: 3,
+      edges: [],
+      nextNodeId: 2,
     };
   }
 };
