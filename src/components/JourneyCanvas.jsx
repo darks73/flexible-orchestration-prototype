@@ -141,7 +141,7 @@ const ErrorEndNode = ({ data, selected }) => (
 const ConditionNode = ({ data, selected }) => (
   <div className={`journey-condition-node ${selected ? 'selected' : ''}`}>
     <div className="condition-diamond">
-      <div className="condition-content">{data.label || 'Condition'}</div>
+      <div className="condition-content">{data.label || 'Boolean Condition'}</div>
     </div>
     <Handle
       type="target"
@@ -292,12 +292,71 @@ const JsonParserNode = ({ data, selected }) => (
   </div>
 );
 
+const CaseConditionNode = ({ data, selected }) => {
+  const conditions = data?.conditions || [];
+  const hasElse = true; // else is always present
+  
+  return (
+    <div className={`frontend-form-node ${selected ? 'selected' : ''}`} style={{ minHeight: '120px' }}>
+      <div className="frontend-form-title">{data.label || 'Case Condition'}</div>
+      <div className="frontend-form-subtitle">Condition</div>
+      {/* Input */}
+      <Handle
+        type="target"
+        position={Position.Left}
+        id="input"
+        style={{ 
+          background: '#041295', // var(--color-primary-blue)
+          border: '2px solid white',
+          width: '8px',
+          height: '8px',
+          left: '-4px',
+          top: '50%',
+          transform: 'translateY(-50%)'
+        }}
+      />
+      {/* Dynamic output handles for each condition */}
+      {conditions.map((condition, idx) => (
+        <Handle
+          key={`condition-${idx}`}
+          type="source"
+          position={Position.Right}
+          id={`case-${idx}`}
+          style={{ 
+            background: '#FF9800', // orange for case conditions
+            border: '2px solid white',
+            width: '8px',
+            height: '8px',
+            right: '-4px',
+            top: `${30 + (idx * (60 / (conditions.length + 1)))}%`,
+          }}
+        />
+      ))}
+      {/* Else handle - always last */}
+      <Handle
+        type="source"
+        position={Position.Right}
+        id="else"
+        style={{ 
+          background: '#9E9E9E', // gray for else/default
+          border: '2px solid white',
+          width: '8px',
+          height: '8px',
+          right: '-4px',
+          top: '80%',
+        }}
+      />
+    </div>
+  );
+};
+
 // Node types configuration
 const nodeTypes = {
   start: StartNode,
   successEnd: SuccessEndNode,
   errorEnd: ErrorEndNode,
   condition: ConditionNode,
+  caseCondition: CaseConditionNode,
   frontendForm: FrontendFormNode,
   httpRequest: HttpBackendNode,
   jsonParser: JsonParserNode,
@@ -446,12 +505,14 @@ function InnerCanvas() {
   const [activeHttpNodeId, setActiveHttpNodeId] = useState(null);
   const [activeJsonParserNodeId, setActiveJsonParserNodeId] = useState(null);
   const [activeConditionNodeId, setActiveConditionNodeId] = useState(null);
+  const [activeCaseConditionNodeId, setActiveCaseConditionNodeId] = useState(null);
   const reactFlowInstance = useReactFlow();
   const canvasRef = useRef(null);
   const [activeTab, setActiveTab] = useState('details');
   const [activeHttpTab, setActiveHttpTab] = useState('details');
   const [activeJsonParserTab, setActiveJsonParserTab] = useState('details');
   const [activeConditionTab, setActiveConditionTab] = useState('details');
+  const [activeCaseConditionTab, setActiveCaseConditionTab] = useState('details');
   const [formSchema, setFormSchema] = useState(null);
   const [selectedElementIndex, setSelectedElementIndex] = useState(null);
   
@@ -459,6 +520,7 @@ function InnerCanvas() {
   const selectedHttpNode = nodes.find(n => n.id === activeHttpNodeId);
   const selectedJsonParserNode = nodes.find(n => n.id === activeJsonParserNodeId);
   const selectedConditionNode = nodes.find(n => n.id === activeConditionNodeId);
+  const selectedCaseConditionNode = nodes.find(n => n.id === activeCaseConditionNodeId);
 
   // hydrate schema when selection changes
   React.useEffect(() => {
@@ -497,6 +559,14 @@ function InnerCanvas() {
     setActiveConditionTab(savedTab === 'condition' ? 'condition' : 'details');
   }, [selectedConditionNode?.id]);
 
+  // hydrate Case Condition node tab when selection changes
+  React.useEffect(() => {
+    if (!selectedCaseConditionNode) return;
+    // restore active tab from localStorage
+    const savedTab = localStorage.getItem(`sidesheetTab:${selectedCaseConditionNode.id}`);
+    setActiveCaseConditionTab(savedTab === 'cases' ? 'cases' : 'details');
+  }, [selectedCaseConditionNode?.id]);
+
   // persist schema to node and storage (basic debounce)
   React.useEffect(() => {
     if (!selectedFrontendForm || !formSchema) return;
@@ -534,6 +604,10 @@ function InnerCanvas() {
           originalColor = '#00BBDD'; // Success green
         } else if (edge.sourceHandle === 'error' || edge.sourceHandle === 'no') {
           originalColor = '#F5D4D4'; // Toned down error color
+        } else if (edge.sourceHandle?.startsWith('case-')) {
+          originalColor = '#FF9800'; // Orange for case conditions
+        } else if (edge.sourceHandle === 'else') {
+          originalColor = '#9E9E9E'; // Gray for else/default
         }
         
         if (edge.selected) {
@@ -785,6 +859,7 @@ function InnerCanvas() {
     setActiveHttpNodeId(null);
     setActiveJsonParserNodeId(null);
     setActiveConditionNodeId(null);
+    setActiveCaseConditionNodeId(null);
   }, [setNodes]);
 
   const deleteSelectedFrontendForm = useCallback(() => {
@@ -836,6 +911,73 @@ function InnerCanvas() {
       return node;
     }));
   }, [activeConditionNodeId, setNodes]);
+
+  // Update handlers for Case Condition node
+  const deleteSelectedCaseConditionNode = useCallback(() => {
+    const nodeId = activeCaseConditionNodeId;
+    if (!nodeId) return;
+    // Remove node and connected edges
+    setNodes((nds) => nds.filter(n => n.id !== nodeId));
+    setEdges((eds) => eds.filter(e => e.source !== nodeId && e.target !== nodeId));
+    setSelectedElements([]);
+    setActiveCaseConditionNodeId(null);
+  }, [activeCaseConditionNodeId, setNodes, setEdges]);
+
+  const updateCaseConditionProperty = useCallback((property, value) => {
+    setNodes((nds) => nds.map(node => {
+      if (node.id === activeCaseConditionNodeId) {
+        return { ...node, data: { ...node.data, [property]: value } };
+      }
+      return node;
+    }));
+  }, [activeCaseConditionNodeId, setNodes]);
+
+  const addCaseCondition = useCallback(() => {
+    setNodes((nds) => nds.map(node => {
+      if (node.id === activeCaseConditionNodeId) {
+        const conditions = [...(node.data?.conditions || [])];
+        conditions.push({
+          id: `case-${Date.now()}`,
+          condition: '',
+          operator: 'eq',
+          value: '',
+        });
+        return { ...node, data: { ...node.data, conditions } };
+      }
+      return node;
+    }));
+  }, [activeCaseConditionNodeId, setNodes]);
+
+  const removeCaseCondition = useCallback((index) => {
+    setNodes((nds) => nds.map(node => {
+      if (node.id === activeCaseConditionNodeId) {
+        const conditions = [...(node.data?.conditions || [])];
+        conditions.splice(index, 1);
+        // Also remove connected edges
+        const conditionId = conditions[index]?.id;
+        return { ...node, data: { ...node.data, conditions } };
+      }
+      return node;
+    }));
+    // Remove edges connected to this condition
+    setEdges((eds) => {
+      const conditionPrefix = `case-${index}`;
+      return eds.filter(e => !(e.source === activeCaseConditionNodeId && e.sourceHandle === conditionPrefix));
+    });
+  }, [activeCaseConditionNodeId, setNodes, setEdges]);
+
+  const updateCaseCondition = useCallback((index, field, value) => {
+    setNodes((nds) => nds.map(node => {
+      if (node.id === activeCaseConditionNodeId) {
+        const conditions = [...(node.data?.conditions || [])];
+        if (conditions[index]) {
+          conditions[index] = { ...conditions[index], [field]: value };
+        }
+        return { ...node, data: { ...node.data, conditions } };
+      }
+      return node;
+    }));
+  }, [activeCaseConditionNodeId, setNodes]);
 
   // Editor operations
   const genGuid = () => 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
@@ -1041,7 +1183,8 @@ function InnerCanvas() {
     let label = 'Node';
     if (nodeType === 'successEnd') label = 'Success';
     if (nodeType === 'errorEnd') label = 'Error';
-    if (nodeType === 'condition') label = 'Condition';
+    if (nodeType === 'condition') label = 'Boolean Condition';
+    if (nodeType === 'caseCondition') label = 'Case Condition';
     if (nodeType === 'frontendForm') label = 'Frontend - Form';
     if (nodeType === 'httpRequest') label = 'HTTP Request';
     if (nodeType === 'jsonParser') label = 'JSON Parser';
@@ -1084,6 +1227,9 @@ function InnerCanvas() {
         operator: 'eq',
         leftOperand: '',
         rightOperand: '',
+      } : nodeType === 'caseCondition' ? {
+        label,
+        conditions: [],
       } : { label },
       selected: false,
     };
@@ -1136,6 +1282,13 @@ function InnerCanvas() {
       } else if (params.sourceHandle === 'error') {
         edgeColor = '#F5D4D4'; // Toned down error color - approximates rgba(224, 30, 0, 0.1) background tone of error node
         edgeLabel = 'error';
+      } else if (params.sourceHandle?.startsWith('case-')) {
+        edgeColor = '#FF9800'; // Orange for case conditions
+        const caseIndex = params.sourceHandle.replace('case-', '');
+        edgeLabel = `case ${caseIndex}`;
+      } else if (params.sourceHandle === 'else') {
+        edgeColor = '#9E9E9E'; // Gray for else/default
+        edgeLabel = 'else';
       }
       
       // Create the new edge with arrow styling
@@ -1220,6 +1373,13 @@ function InnerCanvas() {
       } else if (newConnection.sourceHandle === 'error') {
         edgeColor = '#F5D4D4'; // Toned down error color
         edgeLabel = 'error';
+      } else if (newConnection.sourceHandle?.startsWith('case-')) {
+        edgeColor = '#FF9800'; // Orange for case conditions
+        const caseIndex = newConnection.sourceHandle.replace('case-', '');
+        edgeLabel = `case ${caseIndex}`;
+      } else if (newConnection.sourceHandle === 'else') {
+        edgeColor = '#9E9E9E'; // Gray for else/default
+        edgeLabel = 'else';
       }
 
       // Update the edge with new connection, preserving some properties
@@ -1304,10 +1464,12 @@ function InnerCanvas() {
     const activeHttp = selectedNodes.find(n => n.type === 'httpRequest');
     const activeJsonParser = selectedNodes.find(n => n.type === 'jsonParser');
     const activeCondition = selectedNodes.find(n => n.type === 'condition');
+    const activeCaseCondition = selectedNodes.find(n => n.type === 'caseCondition');
     setActiveFormNodeId(activeForm ? activeForm.id : null);
     setActiveHttpNodeId(activeHttp ? activeHttp.id : null);
     setActiveJsonParserNodeId(activeJsonParser ? activeJsonParser.id : null);
     setActiveConditionNodeId(activeCondition ? activeCondition.id : null);
+    setActiveCaseConditionNodeId(activeCaseCondition ? activeCaseCondition.id : null);
     
     // Ensure edges are only selected if explicitly clicked, not automatically when nodes are selected
     setEdges((eds) => {
@@ -1503,7 +1665,13 @@ function InnerCanvas() {
               <div className="node-menu-icon condition-icon">
                 <span className="material-icons">help_outline</span>
               </div>
-              <span>Condition Node</span>
+              <span>Boolean Condition</span>
+            </div>
+            <div className="node-menu-item" onClick={() => addNode('caseCondition')}>
+              <div className="node-menu-icon frontend-form-icon">
+                <span className="material-icons">call_split</span>
+              </div>
+              <span>Case Condition</span>
             </div>
             <div className="node-menu-item" onClick={() => addNode('httpRequest')}>
               <div className="node-menu-icon frontend-form-icon">
@@ -1536,7 +1704,7 @@ function InnerCanvas() {
           onPointerDown={(e) => e.stopPropagation()}
         >
           <div className="sidesheet-header">
-            <div className="sidesheet-title">Condition</div>
+            <div className="sidesheet-title">Boolean Condition</div>
           </div>
           <div className="sidesheet-tabs">
             <button className={`tab-btn ${activeConditionTab==='details'?'active':''}`} onClick={()=>{
@@ -1558,7 +1726,7 @@ function InnerCanvas() {
                   type="text"
                   value={selectedConditionNode.data?.label || ''}
                   onChange={(e) => updateConditionProperty('label', e.target.value)}
-                  placeholder="Condition"
+                  placeholder="Boolean Condition"
                 />
               </div>
             )}
@@ -1616,6 +1784,119 @@ function InnerCanvas() {
           <div className="sidesheet-footer">
             <div className="footer-left">
               <button className="btn-danger" onClick={deleteSelectedConditionNode}>Delete</button>
+            </div>
+            <div className="footer-right">
+              <button className="btn-secondary" onClick={closeSidesheet}>Close</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Sidesheet for Case Condition */}
+      {selectedCaseConditionNode && (
+        <div 
+          className="sidesheet"
+          onMouseDown={(e) => e.stopPropagation()}
+          onClick={(e) => e.stopPropagation()}
+          onPointerDown={(e) => e.stopPropagation()}
+        >
+          <div className="sidesheet-header">
+            <div className="sidesheet-title">Case Condition</div>
+          </div>
+          <div className="sidesheet-tabs">
+            <button className={`tab-btn ${activeCaseConditionTab==='details'?'active':''}`} onClick={()=>{
+              setActiveCaseConditionTab('details');
+              if (selectedCaseConditionNode?.id) localStorage.setItem(`sidesheetTab:${selectedCaseConditionNode.id}`, 'details');
+            }}>Details</button>
+            <button className={`tab-btn ${activeCaseConditionTab==='cases'?'active':''}`} onClick={()=>{
+              setActiveCaseConditionTab('cases');
+              if (selectedCaseConditionNode?.id) localStorage.setItem(`sidesheetTab:${selectedCaseConditionNode.id}`, 'cases');
+            }}>Cases</button>
+          </div>
+          <div className="sidesheet-body">
+            {activeCaseConditionTab === 'details' && (
+              <div>
+                <label className="input-label" htmlFor="case-condition-name">Name</label>
+                <input
+                  id="case-condition-name"
+                  className="text-input"
+                  type="text"
+                  value={selectedCaseConditionNode.data?.label || ''}
+                  onChange={(e) => updateCaseConditionProperty('label', e.target.value)}
+                  placeholder="Case Condition"
+                />
+              </div>
+            )}
+            {activeCaseConditionTab === 'cases' && (
+              <div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                  <label className="input-label" style={{ margin: 0 }}>Conditions</label>
+                  <button className="btn-secondary" onClick={addCaseCondition} style={{ padding: '4px 8px', fontSize: '12px' }}>
+                    Add Condition
+                  </button>
+                </div>
+                <div style={{ fontSize: '12px', color: 'var(--color-gray-500)', marginBottom: '12px' }}>
+                  Define conditions evaluated top to bottom. First match wins. Else is executed if no condition matches.
+                </div>
+                {(selectedCaseConditionNode.data?.conditions || []).map((cond, idx) => (
+                  <div key={idx} style={{ border: '1px solid var(--color-gray-300)', borderRadius: '4px', padding: '12px', marginBottom: '12px' }}>
+                    <div style={{ display: 'flex', gap: '8px', marginBottom: '8px' }}>
+                      <input
+                        className="text-input"
+                        style={{ flex: 1 }}
+                        type="text"
+                        value={cond.condition || ''}
+                        onChange={(e) => updateCaseCondition(idx, 'condition', e.target.value)}
+                        placeholder="Variable or expression"
+                      />
+                      <select
+                        className="text-input"
+                        style={{ width: '120px' }}
+                        value={cond.operator || 'eq'}
+                        onChange={(e) => updateCaseCondition(idx, 'operator', e.target.value)}
+                      >
+                        <option value="eq">eq</option>
+                        <option value="ne">ne</option>
+                        <option value="gt">gt</option>
+                        <option value="gte">gte</option>
+                        <option value="lt">lt</option>
+                        <option value="lte">lte</option>
+                        <option value="contains">contains</option>
+                      </select>
+                      <input
+                        className="text-input"
+                        style={{ flex: 1 }}
+                        type="text"
+                        value={cond.value || ''}
+                        onChange={(e) => updateCaseCondition(idx, 'value', e.target.value)}
+                        placeholder="Value"
+                      />
+                      <button 
+                        className="btn-danger" 
+                        onClick={() => removeCaseCondition(idx)}
+                        style={{ padding: '4px 8px' }}
+                        title="Remove"
+                      >
+                        <span className="material-icons" style={{ fontSize: '16px' }}>delete_outline</span>
+                      </button>
+                    </div>
+                  </div>
+                ))}
+                <div style={{ border: '1px solid var(--color-gray-300)', borderRadius: '4px', padding: '12px', backgroundColor: 'var(--color-gray-50)', marginTop: '12px' }}>
+                  <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                    <span className="material-icons" style={{ fontSize: '16px', color: 'var(--color-gray-600)' }}>info_outline</span>
+                    <div style={{ flex: 1 }}>
+                      <strong style={{ fontSize: '13px' }}>Else (Default Path)</strong>
+                      <div style={{ fontSize: '12px', color: 'var(--color-gray-500)' }}>Executed if no condition matches</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+          <div className="sidesheet-footer">
+            <div className="footer-left">
+              <button className="btn-danger" onClick={deleteSelectedCaseConditionNode}>Delete</button>
             </div>
             <div className="footer-right">
               <button className="btn-secondary" onClick={closeSidesheet}>Close</button>
