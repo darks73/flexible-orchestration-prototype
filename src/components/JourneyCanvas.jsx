@@ -328,7 +328,7 @@ const CaseConditionNode = ({ data, selected }) => {
             width: '8px',
             height: '8px',
             right: '-4px',
-            top: `${30 + (idx * (60 / (conditions.length + 1)))}%`,
+            top: `${20 + (idx * (50 / (conditions.length + 1)))}%`,
           }}
         />
       ))}
@@ -343,7 +343,7 @@ const CaseConditionNode = ({ data, selected }) => {
           width: '8px',
           height: '8px',
           right: '-4px',
-          top: '80%',
+          top: `${70 + (conditions.length * (50 / (conditions.length + 1)))}%`,
         }}
       />
     </div>
@@ -566,6 +566,28 @@ function InnerCanvas() {
     const savedTab = localStorage.getItem(`sidesheetTab:${selectedCaseConditionNode.id}`);
     setActiveCaseConditionTab(savedTab === 'cases' ? 'cases' : 'details');
   }, [selectedCaseConditionNode?.id]);
+
+  // Update edge labels when case condition data changes
+  React.useEffect(() => {
+    // Update all edges from case condition nodes with their current condition labels
+    setEdges((eds) => {
+      const updated = eds.map(edge => {
+        if (edge.sourceHandle?.startsWith('case-')) {
+          const caseIndex = parseInt(edge.sourceHandle.replace('case-', ''), 10);
+          const sourceNode = nodes.find(n => n.id === edge.source);
+          const condition = sourceNode?.data?.conditions?.[caseIndex];
+          const newLabel = condition?.condition || `case ${caseIndex}`;
+          if (edge.label !== newLabel) {
+            return { ...edge, label: newLabel };
+          }
+        }
+        return edge;
+      });
+      // Only update if there were actual changes
+      const hasChanges = updated.some((e, idx) => e.label !== eds[idx].label);
+      return hasChanges ? updated : eds;
+    });
+  }, [nodes, setEdges]);
 
   // persist schema to node and storage (basic debounce)
   React.useEffect(() => {
@@ -1285,7 +1307,9 @@ function InnerCanvas() {
       } else if (params.sourceHandle?.startsWith('case-')) {
         edgeColor = '#FF9800'; // Orange for case conditions
         const caseIndex = params.sourceHandle.replace('case-', '');
-        edgeLabel = `case ${caseIndex}`;
+        const sourceNode = nodes.find(n => n.id === params.source);
+        const condition = sourceNode?.data?.conditions?.[parseInt(caseIndex, 10)];
+        edgeLabel = condition?.condition || `case ${caseIndex}`;
       } else if (params.sourceHandle === 'else') {
         edgeColor = '#9E9E9E'; // Gray for else/default
         edgeLabel = 'else';
@@ -1376,7 +1400,9 @@ function InnerCanvas() {
       } else if (newConnection.sourceHandle?.startsWith('case-')) {
         edgeColor = '#FF9800'; // Orange for case conditions
         const caseIndex = newConnection.sourceHandle.replace('case-', '');
-        edgeLabel = `case ${caseIndex}`;
+        const sourceNode = nodes.find(n => n.id === newConnection.source);
+        const condition = sourceNode?.data?.conditions?.[parseInt(caseIndex, 10)];
+        edgeLabel = condition?.condition || `case ${caseIndex}`;
       } else if (newConnection.sourceHandle === 'else') {
         edgeColor = '#9E9E9E'; // Gray for else/default
         edgeLabel = 'else';
