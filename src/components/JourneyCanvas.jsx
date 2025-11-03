@@ -94,7 +94,7 @@ const FrontendFormNode = ({ data, selected }) => (
       position={Position.Right}
       id="error"
       style={{ 
-        background: '#E01E00', // var(--color-error-red)
+        background: '#B81500', // darker error red
         border: '2px solid white',
         width: '8px',
         height: '8px',
@@ -144,10 +144,7 @@ const ErrorEndNode = ({ data, selected }) => (
 const ConditionNode = ({ data, selected }) => (
   <div className={`journey-condition-node ${selected ? 'selected' : ''}`}>
     <div className="condition-diamond">
-      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-        <span className="material-icons" style={{ fontSize: '18px' }}>help_outline</span>
-        <div className="condition-content">{data.label || 'Condition'}</div>
-      </div>
+      <div className="condition-content">{data.label || 'Condition'}</div>
     </div>
     <Handle
       type="target"
@@ -182,7 +179,7 @@ const ConditionNode = ({ data, selected }) => (
       position={Position.Bottom}
       id="no"
       style={{ 
-        background: '#E01E00', // var(--color-error-red)
+        background: '#B81500', // darker error red
         border: '2px solid white',
         width: '8px',
         height: '8px',
@@ -237,7 +234,7 @@ const HttpBackendNode = ({ data, selected }) => (
       position={Position.Right}
       id="error"
       style={{ 
-        background: '#E01E00', // var(--color-error-red)
+        background: '#B81500', // darker error red
         border: '2px solid white',
         width: '8px',
         height: '8px',
@@ -292,7 +289,7 @@ const JsonParserNode = ({ data, selected }) => (
       position={Position.Right}
       id="error"
       style={{ 
-        background: '#E01E00', // var(--color-error-red)
+        background: '#B81500', // darker error red
         border: '2px solid white',
         width: '8px',
         height: '8px',
@@ -1720,7 +1717,7 @@ function InnerCanvas() {
               <span>Frontend - Form</span>
             </div>
             <div className="node-menu-item" onClick={() => addNode('condition')}>
-              <div className="node-menu-icon condition-icon">
+              <div className="node-menu-icon frontend-form-icon">
                 <span className="material-icons">help_outline</span>
               </div>
               <span>Condition</span>
