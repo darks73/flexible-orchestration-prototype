@@ -742,17 +742,16 @@ h4, .h4 {
 
 .sidesheet-tabs { 
     display: flex; 
-    gap: var(--spacing-6); 
-    padding: 0 var(--spacing-6); 
-    border-bottom: 2px solid var(--color-blue-50); 
+    gap: var(--spacing-2); 
+    padding: var(--spacing-2) var(--spacing-6); 
+    border-bottom: 1px solid var(--color-blue-50); 
 }
 
 .tab-btn { 
     border: none; 
-    background: transparent; 
-    padding: 12px 4px; 
-    border-bottom: 2px solid transparent;
-    margin-bottom: -2px;
+    background: var(--color-gray-25); 
+    padding: 6px 10px; 
+    border-radius: 2px; 
     cursor: pointer;
     font-family: 'Roboto', sans-serif;
     font-size: 14px;
@@ -762,12 +761,12 @@ h4, .h4 {
 }
 
 .tab-btn:hover {
-    color: var(--color-primary-blue);
+    background: var(--color-blue-50);
 }
 
 .tab-btn.active { 
-    color: var(--color-primary-blue);
-    border-bottom-color: var(--color-primary-blue);
+    background: var(--color-primary-blue); 
+    color: var(--color-white); 
 }
 
 .sidesheet-body {
