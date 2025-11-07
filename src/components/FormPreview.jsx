@@ -72,9 +72,22 @@ export default function FormPreview({ schema, onSubmit }) {
       className: 'text-input',
     };
     const label = el.label || el.i18nKey || el.id;
+    const isRequired = Boolean(el?.validations?.required?.enabled);
+    const shouldShowLabelAbove = ['input', 'password', 'checkbox'].includes(el.type) && label;
     return (
       <div key={el.id} className="preview-field">
-        {el.type === 'label' && <div className="preview-label">{label}</div>}
+        {shouldShowLabelAbove && (
+          <label className="preview-label" htmlFor={el.id}>
+            {label}
+            {isRequired && <span className="preview-required">*</span>}
+          </label>
+        )}
+        {el.type === 'label' && (
+          <div className="preview-label">
+            {label}
+            {isRequired && <span className="preview-required">*</span>}
+          </div>
+        )}
         {el.type === 'input' && <input type="text" {...common} />}
         {el.type === 'password' && <input type="password" {...common} />}
         {el.type === 'checkbox' && <input type="checkbox" {...common} />}

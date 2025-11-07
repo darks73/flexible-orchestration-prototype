@@ -1432,6 +1432,13 @@ button.btn-tertiary {
 .preview-label { 
     font-weight: 600; 
     color: var(--color-gray-900); 
+    display: block;
+    margin-bottom: 4px;
+}
+
+.preview-required {
+    color: var(--color-error-red);
+    margin-left: 4px;
 }
 
 /* ============================================
