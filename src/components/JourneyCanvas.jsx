@@ -76,6 +76,40 @@ const createDefaultHttpResponseStorage = () => ({
   storeBody: true,
 });
 
+const createDefaultFormResponseStorage = () => ({
+  attributeName: 'formData',
+  storeAllFields: true,
+  selectedFields: [],
+});
+
+const extractFormFieldOptions = (schema) => {
+  const options = [];
+
+  if (!schema || !Array.isArray(schema.elements)) {
+    return options;
+  }
+
+  const excludedTypes = new Set(['label', 'button']);
+
+  const walk = (elements) => {
+    if (!Array.isArray(elements)) return;
+    elements.forEach((el) => {
+      if (!el) return;
+      if (el.type === 'row') {
+        walk(el.children || []);
+        return;
+      }
+      const label = el.label || el.i18nKey || el.id;
+      if (!excludedTypes.has(el.type)) {
+        options.push({ id: el.id, label });
+      }
+    });
+  };
+
+  walk(schema.elements);
+  return options;
+};
+
 // Custom node components
 const StartNode = ({ data, selected }) => (
   <div className={`journey-start-node ${selected ? 'selected' : ''}`}>
@@ -843,6 +877,8 @@ function InnerCanvas({ onExportReady, onImportReady }) {
   const selectedSwitchNode = nodes.find(n => n.id === activeSwitchNodeId);
   const selectedContextOperationNode = nodes.find(n => n.id === activeContextOperationNodeId);
 
+  const formFieldOptions = React.useMemo(() => extractFormFieldOptions(formSchema), [formSchema]);
+
   React.useEffect(() => {
     if (!nodes?.length) {
       return;
@@ -850,8 +886,8 @@ function InnerCanvas({ onExportReady, onImportReady }) {
 
     const needsInitialization = nodes.some(
       (node) =>
-        node.type === 'httpRequest' &&
-        (!node.data?.authentication || !node.data?.responseStorage)
+        (node.type === 'httpRequest' && (!node.data?.authentication || !node.data?.responseStorage)) ||
+        (node.type === 'frontendForm' && !node.data?.responseStorage)
     );
 
     if (!needsInitialization) {
@@ -871,6 +907,19 @@ function InnerCanvas({ onExportReady, onImportReady }) {
           return {
             ...node,
             data: nextData,
+          };
+        }
+
+        if (node.type === 'frontendForm') {
+          if (node.data?.responseStorage) {
+            return node;
+          }
+          return {
+            ...node,
+            data: {
+              ...node.data,
+              responseStorage: createDefaultFormResponseStorage(),
+            },
           };
         }
         return node;
@@ -893,6 +942,19 @@ function InnerCanvas({ onExportReady, onImportReady }) {
     }
     return { ...base, ...selectedHttpNode.data.responseStorage };
   }, [selectedHttpNode?.data?.responseStorage]);
+
+  const selectedFormResponseStorage = React.useMemo(() => {
+    const base = createDefaultFormResponseStorage();
+    if (!selectedFrontendForm?.data?.responseStorage) {
+      return base;
+    }
+    const stored = selectedFrontendForm.data.responseStorage;
+    return {
+      ...base,
+      ...stored,
+      selectedFields: Array.isArray(stored?.selectedFields) ? stored.selectedFields : base.selectedFields,
+    };
+  }, [selectedFrontendForm?.data?.responseStorage]);
 
   React.useEffect(() => {
     if (!nodes?.length) {
@@ -1030,7 +1092,8 @@ function InnerCanvas({ onExportReady, onImportReady }) {
     setFormSchema(schema);
     // restore active tab from localStorage
     const savedTab = localStorage.getItem(`sidesheetTab:${selectedFrontendForm.id}`);
-    setActiveTab(savedTab === 'form' ? 'form' : 'details');
+    const validFormTabs = ['details', 'form', 'response'];
+    setActiveTab(validFormTabs.includes(savedTab) ? savedTab : 'details');
     setSelectedElementIndex(null);
   }, [selectedFrontendForm?.id]);
 
@@ -1145,7 +1208,35 @@ function InnerCanvas({ onExportReady, onImportReady }) {
     const id = selectedFrontendForm.id;
     const timeout = setTimeout(() => {
       saveFormSchema(id, formSchema);
-      setNodes(nds => nds.map(n => n.id === id ? { ...n, data: { ...n.data, formSchema } } : n));
+      const availableLabels = new Set(extractFormFieldOptions(formSchema).map((opt) => opt.label));
+      setNodes((nds) =>
+        nds.map((node) => {
+          if (node.id !== id) {
+            return node;
+          }
+
+          const currentStorage = {
+            ...createDefaultFormResponseStorage(),
+            ...(node.data?.responseStorage || {}),
+          };
+
+          const filteredSelected = (currentStorage.selectedFields || []).filter((label) =>
+            availableLabels.has(label)
+          );
+
+          return {
+            ...node,
+            data: {
+              ...node.data,
+              formSchema,
+              responseStorage: {
+                ...currentStorage,
+                selectedFields: filteredSelected,
+              },
+            },
+          };
+        })
+      );
     }, 150);
     return () => clearTimeout(timeout);
   }, [formSchema, selectedFrontendForm?.id, setNodes]);
@@ -1303,6 +1394,51 @@ function InnerCanvas({ onExportReady, onImportReady }) {
       return node;
     }));
   }, [activeFormNodeId, setNodes]);
+
+  const updateFormResponseStorage = useCallback((updater) => {
+    setNodes((nds) =>
+      nds.map((node) => {
+        if (node.id !== activeFormNodeId) {
+          return node;
+        }
+
+        const currentStorage = {
+          ...createDefaultFormResponseStorage(),
+          ...(node.data?.responseStorage || {}),
+        };
+
+        const nextStorage =
+          typeof updater === 'function'
+            ? updater(currentStorage)
+            : { ...currentStorage, ...updater };
+
+        return {
+          ...node,
+          data: {
+            ...node.data,
+            responseStorage: nextStorage,
+          },
+        };
+      })
+    );
+  }, [activeFormNodeId, setNodes]);
+
+  React.useEffect(() => {
+    if (!selectedFrontendForm?.data?.responseStorage) {
+      return;
+    }
+
+    const availableLabels = new Set(formFieldOptions.map((option) => option.label));
+    const currentSelected = selectedFrontendForm.data.responseStorage.selectedFields || [];
+    const filteredSelected = currentSelected.filter((label) => availableLabels.has(label));
+
+    if (filteredSelected.length !== currentSelected.length) {
+      updateFormResponseStorage((storage) => ({
+        ...storage,
+        selectedFields: filteredSelected,
+      }));
+    }
+  }, [selectedFrontendForm?.data?.responseStorage, formFieldOptions, updateFormResponseStorage]);
 
   // Update handlers for HTTP node
   const updateHttpNodeProperty = useCallback((property, value) => {
@@ -1760,11 +1896,36 @@ function InnerCanvas({ onExportReady, onImportReady }) {
   };
 
   const updateElement = (idx, next) => {
-    setFormSchema(s => {
-      const arr = [...s.elements];
+    let previousLabel;
+    let nextLabel;
+
+    setFormSchema((schema) => {
+      const arr = [...schema.elements];
+      const prev = arr[idx];
+      previousLabel = prev ? prev.label || prev.i18nKey || prev.id : undefined;
+      nextLabel = next ? next.label || next.i18nKey || next.id : undefined;
       arr[idx] = next;
-      return { ...s, elements: arr };
+      return { ...schema, elements: arr };
     });
+
+    if (
+      previousLabel &&
+      nextLabel &&
+      previousLabel !== nextLabel
+    ) {
+      updateFormResponseStorage((storage) => {
+        if (!storage.selectedFields?.includes(previousLabel)) {
+          return storage;
+        }
+        const updatedSelection = storage.selectedFields.map((label) =>
+          label === previousLabel ? nextLabel : label
+        );
+        return {
+          ...storage,
+          selectedFields: updatedSelection,
+        };
+      });
+    }
   };
 
   const addChild = (rowIdx, type) => {
@@ -4109,6 +4270,10 @@ function InnerCanvas({ onExportReady, onImportReady }) {
               setActiveTab('form');
               if (selectedFrontendForm?.id) localStorage.setItem(`sidesheetTab:${selectedFrontendForm.id}`, 'form');
             }}>Form</button>
+            <button className={`tab-btn ${activeTab==='response'?'active':''}`} onClick={()=>{
+              setActiveTab('response');
+              if (selectedFrontendForm?.id) localStorage.setItem(`sidesheetTab:${selectedFrontendForm.id}`, 'response');
+            }}>Response</button>
           </div>
           <div className="sidesheet-body">
             {activeTab === 'details' && (
@@ -4243,6 +4408,103 @@ function InnerCanvas({ onExportReady, onImportReady }) {
                     </>
                   )}
                 </div>
+              </div>
+            )}
+            {activeTab === 'response' && (
+              <div>
+                <label className="input-label" htmlFor="form-response-attribute">Context Attribute Name</label>
+                <input
+                  id="form-response-attribute"
+                  className="text-input"
+                  type="text"
+                  value={selectedFormResponseStorage.attributeName || ''}
+                  onChange={(e) =>
+                    updateFormResponseStorage((storage) => ({
+                      ...storage,
+                      attributeName: e.target.value,
+                    }))
+                  }
+                  placeholder="formData"
+                />
+                <div style={{ fontSize: '12px', color: 'var(--color-gray-500)', marginTop: '4px' }}>
+                  Submitted form data will be stored in this context attribute.
+                </div>
+
+                <div style={{ marginTop: '24px' }}>
+                  <label className="input-label" style={{ margin: 0 }}>Fields to Store</label>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '8px' }}>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <input
+                        type="radio"
+                        name="form-response-storage-scope"
+                        value="all"
+                        checked={!!selectedFormResponseStorage.storeAllFields}
+                        onChange={() =>
+                          updateFormResponseStorage((storage) => ({
+                            ...storage,
+                            storeAllFields: true,
+                          }))
+                        }
+                      />
+                      <span>Store all fields</span>
+                    </label>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <input
+                        type="radio"
+                        name="form-response-storage-scope"
+                        value="selected"
+                        checked={!selectedFormResponseStorage.storeAllFields}
+                        onChange={() =>
+                          updateFormResponseStorage((storage) => ({
+                            ...storage,
+                            storeAllFields: false,
+                          }))
+                        }
+                      />
+                      <span>Store selected fields</span>
+                    </label>
+                  </div>
+                </div>
+
+                {!selectedFormResponseStorage.storeAllFields && (
+                  <div style={{ marginTop: '16px' }}>
+                    {formFieldOptions.length === 0 ? (
+                      <p style={{ fontSize: '12px', color: 'var(--color-gray-500)' }}>
+                        No form fields available. Add inputs to the form to select specific fields.
+                      </p>
+                    ) : (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                        {formFieldOptions.map((option) => {
+                          const isChecked = selectedFormResponseStorage.selectedFields.includes(option.label);
+                          return (
+                            <label key={option.id} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                              <input
+                                type="checkbox"
+                                checked={isChecked}
+                                onChange={(e) => {
+                                  const { checked } = e.target;
+                                  updateFormResponseStorage((storage) => {
+                                    const nextSelected = new Set(storage.selectedFields || []);
+                                    if (checked) {
+                                      nextSelected.add(option.label);
+                                    } else {
+                                      nextSelected.delete(option.label);
+                                    }
+                                    return {
+                                      ...storage,
+                                      selectedFields: Array.from(nextSelected),
+                                    };
+                                  });
+                                }}
+                              />
+                              <span>{option.label}</span>
+                            </label>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             )}
           </div>
