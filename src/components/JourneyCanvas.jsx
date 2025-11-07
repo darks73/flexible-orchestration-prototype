@@ -17,6 +17,49 @@ import FormPreview from './FormPreview.jsx';
 import FormEditorFields from './FormEditorFields.jsx';
 import { loadFormSchema, saveFormSchema, createEmptySchema } from '../utils/formStorage.js';
 
+const SWITCH_HANDLE_PREFIX = 'switch-case-';
+const LEGACY_SWITCH_HANDLE_REGEX = /^switch-\d+$/;
+
+const generateSwitchCaseHandleId = () => `${SWITCH_HANDLE_PREFIX}${Math.random().toString(36).slice(2, 11)}`;
+
+const isSwitchCaseHandle = (handleId) =>
+  typeof handleId === 'string' &&
+  (handleId.startsWith(SWITCH_HANDLE_PREFIX) || LEGACY_SWITCH_HANDLE_REGEX.test(handleId));
+
+const findSwitchCaseByHandle = (switchNode, handleId) => {
+  if (!switchNode || !handleId) {
+    return { caseItem: null, index: -1 };
+  }
+
+  const cases = switchNode.data?.cases || [];
+  const idIndex = cases.findIndex((caseItem) => caseItem?.id === handleId);
+  if (idIndex !== -1) {
+    return { caseItem: cases[idIndex], index: idIndex };
+  }
+
+  if (LEGACY_SWITCH_HANDLE_REGEX.test(handleId)) {
+    const legacyIndex = parseInt(handleId.replace('switch-', ''), 10);
+    if (!Number.isNaN(legacyIndex)) {
+      return { caseItem: cases[legacyIndex], index: legacyIndex };
+    }
+  }
+
+  return { caseItem: null, index: -1 };
+};
+
+const sanitizeEdgeSegment = (value) =>
+  (value ?? 'null').toString().replace(/[^a-zA-Z0-9_-]/g, '_');
+
+const buildEdgeId = ({ source, sourceHandle, target, targetHandle }) => {
+  const parts = [
+    sanitizeEdgeSegment(source),
+    sanitizeEdgeSegment(sourceHandle || 'right'),
+    sanitizeEdgeSegment(target),
+    sanitizeEdgeSegment(targetHandle || 'left'),
+  ];
+  return `e-${parts.join('--')}`;
+};
+
 // Custom node components
 const StartNode = ({ data, selected }) => (
   <div className={`journey-start-node ${selected ? 'selected' : ''}`}>
@@ -402,12 +445,13 @@ const SwitchNode = ({ data, selected }) => {
         const baseOffset = 15;
         const range = 70;
         const topPercent = baseOffset + (idx * (range / totalOutputs));
+        const handleId = caseItem?.id || `switch-${idx}`;
         return (
           <Handle
-            key={caseItem.id || `switch-${idx}`}
+            key={handleId}
             type="source"
             position={Position.Right}
-            id={`switch-${idx}`}
+            id={handleId}
             style={{ 
               background: '#9C27B0', // purple for switch cases
               border: '2px solid white',
@@ -783,6 +827,133 @@ function InnerCanvas({ onExportReady, onImportReady }) {
   const selectedSwitchNode = nodes.find(n => n.id === activeSwitchNodeId);
   const selectedContextOperationNode = nodes.find(n => n.id === activeContextOperationNodeId);
 
+  React.useEffect(() => {
+    if (!nodes?.length) {
+      return;
+    }
+
+    const legacyMappings = [];
+    let shouldUpdateNodes = false;
+
+    const normalizedNodes = nodes.map((node) => {
+      if (node.type !== 'switch') {
+        return node;
+      }
+
+      const cases = node.data?.cases || [];
+      if (!cases.length) {
+        return node;
+      }
+
+      let nodeChanged = false;
+      const normalizedCases = cases.map((caseItem, idx) => {
+        if (!caseItem) {
+          return caseItem;
+        }
+
+        const handleId = caseItem.id || generateSwitchCaseHandleId();
+        legacyMappings.push({
+          nodeId: node.id,
+          legacyHandle: `switch-${idx}`,
+          newHandle: handleId,
+        });
+
+        if (!caseItem.id) {
+          nodeChanged = true;
+          shouldUpdateNodes = true;
+          return { ...caseItem, id: handleId };
+        }
+
+        return caseItem;
+      });
+
+      if (!nodeChanged) {
+        return node;
+      }
+
+      return {
+        ...node,
+        data: {
+          ...node.data,
+          cases: normalizedCases,
+        },
+      };
+    });
+
+    const edgesNeedUpdate = edges.some((edge) =>
+      legacyMappings.some(
+        (mapping) => mapping.nodeId === edge.source && edge.sourceHandle === mapping.legacyHandle
+      )
+    );
+
+    if (!shouldUpdateNodes && !edgesNeedUpdate) {
+      return;
+    }
+
+    if (shouldUpdateNodes) {
+      setNodes(normalizedNodes);
+    }
+
+    if (edgesNeedUpdate) {
+      setEdges((eds) =>
+        eds.map((edge) => {
+          const mapping = legacyMappings.find(
+            (m) => m.nodeId === edge.source && edge.sourceHandle === m.legacyHandle
+          );
+          return mapping ? { ...edge, sourceHandle: mapping.newHandle } : edge;
+        })
+      );
+    }
+  }, [nodes, edges, setNodes, setEdges]);
+
+  React.useEffect(() => {
+    if (!edges?.length) {
+      return;
+    }
+
+    const seenIds = new Set();
+    let needsUpdate = false;
+
+    const normalizedEdges = edges.map((edge) => {
+      const normalizedSourceHandle = edge.sourceHandle || 'right';
+      const normalizedTargetHandle = edge.targetHandle || 'left';
+      const baseId = buildEdgeId({
+        source: edge.source,
+        sourceHandle: normalizedSourceHandle,
+        target: edge.target,
+        targetHandle: normalizedTargetHandle,
+      });
+
+      let finalId = baseId;
+      let counter = 1;
+      while (seenIds.has(finalId)) {
+        finalId = `${baseId}__${counter}`;
+        counter += 1;
+      }
+      seenIds.add(finalId);
+
+      if (
+        edge.id === finalId &&
+        edge.sourceHandle === normalizedSourceHandle &&
+        edge.targetHandle === normalizedTargetHandle
+      ) {
+        return edge;
+      }
+
+      needsUpdate = true;
+      return {
+        ...edge,
+        id: finalId,
+        sourceHandle: normalizedSourceHandle,
+        targetHandle: normalizedTargetHandle,
+      };
+    });
+
+    if (needsUpdate) {
+      setEdges(normalizedEdges);
+    }
+  }, [edges, setEdges]);
+
   // hydrate schema when selection changes
   React.useEffect(() => {
     if (!selectedFrontendForm) { setFormSchema(null); return; }
@@ -871,11 +1042,17 @@ function InnerCanvas({ onExportReady, onImportReady }) {
     // Update all edges from switch nodes with their current case labels
     setEdges((eds) => {
       const updated = eds.map(edge => {
-        if (edge.sourceHandle?.startsWith('switch-')) {
-          const caseIndex = parseInt(edge.sourceHandle.replace('switch-', ''), 10);
+        if (isSwitchCaseHandle(edge.sourceHandle)) {
           const sourceNode = nodes.find(n => n.id === edge.source);
-          const caseItem = sourceNode?.data?.cases?.[caseIndex];
-          const newLabel = caseItem ? `${caseItem.value}` : `case ${caseIndex}`;
+          const { caseItem, index } = findSwitchCaseByHandle(sourceNode, edge.sourceHandle);
+          let newLabel = '';
+          if (caseItem && caseItem.value) {
+            newLabel = `${caseItem.value}`;
+          } else if (index >= 0) {
+            newLabel = `case ${index}`;
+          } else {
+            newLabel = 'case';
+          }
           if (edge.label !== newLabel) {
             return { ...edge, label: newLabel };
           }
@@ -935,7 +1112,7 @@ function InnerCanvas({ onExportReady, onImportReady }) {
           originalColor = '#FF9800'; // Orange for case conditions
         } else if (edge.sourceHandle === 'else') {
           originalColor = '#9E9E9E'; // Gray for else/default
-        } else if (edge.sourceHandle?.startsWith('switch-')) {
+        } else if (isSwitchCaseHandle(edge.sourceHandle)) {
           originalColor = '#9C27B0'; // Purple for switch cases
         } else if (edge.sourceHandle === 'default') {
           originalColor = '#9E9E9E'; // Gray for default
@@ -1337,7 +1514,7 @@ function InnerCanvas({ onExportReady, onImportReady }) {
       if (node.id === activeSwitchNodeId) {
         const cases = [...(node.data?.cases || [])];
         cases.push({
-          id: `switch-case-${Date.now()}`,
+          id: generateSwitchCaseHandleId(),
           value: '',
         });
         return { ...node, data: { ...node.data, cases } };
@@ -1347,19 +1524,32 @@ function InnerCanvas({ onExportReady, onImportReady }) {
   }, [activeSwitchNodeId, setNodes]);
 
   const removeSwitchCase = useCallback((index) => {
+    let removedCaseHandleId = null;
+
     setNodes((nds) => nds.map(node => {
       if (node.id === activeSwitchNodeId) {
         const cases = [...(node.data?.cases || [])];
-        cases.splice(index, 1);
+        const [removedCase] = cases.splice(index, 1);
+        if (removedCase?.id) {
+          removedCaseHandleId = removedCase.id;
+        }
         return { ...node, data: { ...node.data, cases } };
       }
       return node;
     }));
-    // Remove edges connected to this case
-    setEdges((eds) => {
-      const casePrefix = `switch-${index}`;
-      return eds.filter(e => !(e.source === activeSwitchNodeId && e.sourceHandle === casePrefix));
-    });
+    // Remove edges connected to this case (supports legacy index handles as fallback)
+    setEdges((eds) =>
+      eds.filter((edge) => {
+        if (edge.source !== activeSwitchNodeId) {
+          return true;
+        }
+        if (removedCaseHandleId && edge.sourceHandle === removedCaseHandleId) {
+          return false;
+        }
+        const legacyHandle = `switch-${index}`;
+        return edge.sourceHandle !== legacyHandle;
+      })
+    );
   }, [activeSwitchNodeId, setNodes, setEdges]);
 
   const updateSwitchCase = useCallback((index, field, value) => {
@@ -1741,24 +1931,28 @@ function InnerCanvas({ onExportReady, onImportReady }) {
         return;
       }
       
+      // Ensure handles are always populated for consistent IDs
+      const sourceHandle = params.sourceHandle || 'right';
+      const targetHandle = params.targetHandle || 'left';
+
       // Determine edge color and label based on source handle
       let edgeColor = '#041295'; // Default blue - var(--color-primary-blue)
       let edgeLabel = '';
-      if (params.sourceHandle === 'yes') {
+      if (sourceHandle === 'yes') {
         edgeColor = '#00BBDD'; // Green for true - var(--color-success-green)
         edgeLabel = 'true';
-      } else if (params.sourceHandle === 'no') {
+      } else if (sourceHandle === 'no') {
         edgeColor = '#C62828'; // Darker error color - approximates rgba(224, 30, 0, 0.1) background tone of error node
         edgeLabel = 'false';
-      } else if (params.sourceHandle === 'success') {
+      } else if (sourceHandle === 'success') {
         edgeColor = '#00BBDD'; // var(--color-success-green)
         edgeLabel = 'success';
-      } else if (params.sourceHandle === 'error') {
+      } else if (sourceHandle === 'error') {
         edgeColor = '#C62828'; // Darker error color - approximates rgba(224, 30, 0, 0.1) background tone of error node
         edgeLabel = 'error';
-      } else if (params.sourceHandle?.startsWith('case-')) {
+      } else if (sourceHandle?.startsWith('case-')) {
         edgeColor = '#FF9800'; // Orange for case conditions
-        const caseIndex = params.sourceHandle.replace('case-', '');
+        const caseIndex = sourceHandle.replace('case-', '');
         const sourceNode = nodes.find(n => n.id === params.source);
         const condition = sourceNode?.data?.conditions?.[parseInt(caseIndex, 10)];
         if (condition) {
@@ -1766,31 +1960,45 @@ function InnerCanvas({ onExportReady, onImportReady }) {
         } else {
           edgeLabel = `case ${caseIndex}`;
         }
-      } else if (params.sourceHandle === 'else') {
+      } else if (sourceHandle === 'else') {
         edgeColor = '#9E9E9E'; // Gray for else/default
         edgeLabel = 'else';
-      } else if (params.sourceHandle?.startsWith('switch-')) {
+      } else if (isSwitchCaseHandle(sourceHandle)) {
         edgeColor = '#9C27B0'; // Purple for switch cases
-        const caseIndex = params.sourceHandle.replace('switch-', '');
         const sourceNode = nodes.find(n => n.id === params.source);
-        const caseItem = sourceNode?.data?.cases?.[parseInt(caseIndex, 10)];
-        if (caseItem) {
+        const { caseItem, index } = findSwitchCaseByHandle(sourceNode, sourceHandle);
+        if (caseItem && caseItem.value) {
           edgeLabel = `${caseItem.value}`;
+        } else if (index >= 0) {
+          edgeLabel = `case ${index}`;
         } else {
-          edgeLabel = `case ${caseIndex}`;
+          edgeLabel = 'case';
         }
-      } else if (params.sourceHandle === 'default') {
+      } else if (sourceHandle === 'default') {
         edgeColor = '#9E9E9E'; // Gray for default
         const sourceNode = nodes.find(n => n.id === params.source);
         edgeLabel = sourceNode?.data?.defaultLabel || 'default';
+      }
+
+      const baseEdgeId = buildEdgeId({
+        source: params.source,
+        sourceHandle,
+        target: params.target,
+        targetHandle,
+      });
+      let finalEdgeId = baseEdgeId;
+      let counter = 1;
+      while (edges.some(edge => edge.id === finalEdgeId)) {
+        finalEdgeId = `${baseEdgeId}__${counter}`;
+        counter += 1;
       }
       
       // Create the new edge with arrow styling
       const newEdge = {
         ...params,
-        id: `e${params.source}-${params.target}`,
-        sourceHandle: params.sourceHandle || 'right',
-        targetHandle: params.targetHandle || 'left',
+        id: finalEdgeId,
+        sourceHandle,
+        targetHandle,
         type: 'default',
         animated: false,
         interactionWidth: 30, // Extended grab area including arrowhead
@@ -1863,24 +2071,27 @@ function InnerCanvas({ onExportReady, onImportReady }) {
         return;
       }
 
+      const normalizedSourceHandle = newConnection.sourceHandle || currentEdge?.sourceHandle || 'right';
+      const normalizedTargetHandle = newConnection.targetHandle || currentEdge?.targetHandle || 'left';
+
       // Determine edge color and label based on source handle
       let edgeColor = '#041295'; // Default blue - var(--color-primary-blue)
       let edgeLabel = '';
-      if (newConnection.sourceHandle === 'yes') {
+      if (normalizedSourceHandle === 'yes') {
         edgeColor = '#00BBDD'; // Green for true - var(--color-success-green)
         edgeLabel = 'true';
-      } else if (newConnection.sourceHandle === 'no') {
+      } else if (normalizedSourceHandle === 'no') {
         edgeColor = '#C62828'; // Darker error color
         edgeLabel = 'false';
-      } else if (newConnection.sourceHandle === 'success') {
+      } else if (normalizedSourceHandle === 'success') {
         edgeColor = '#00BBDD'; // var(--color-success-green)
         edgeLabel = 'success';
-      } else if (newConnection.sourceHandle === 'error') {
+      } else if (normalizedSourceHandle === 'error') {
         edgeColor = '#C62828'; // Darker error color
         edgeLabel = 'error';
-      } else if (newConnection.sourceHandle?.startsWith('case-')) {
+      } else if (normalizedSourceHandle?.startsWith('case-')) {
         edgeColor = '#FF9800'; // Orange for case conditions
-        const caseIndex = newConnection.sourceHandle.replace('case-', '');
+        const caseIndex = normalizedSourceHandle.replace('case-', '');
         const sourceNode = nodes.find(n => n.id === newConnection.source);
         const condition = sourceNode?.data?.conditions?.[parseInt(caseIndex, 10)];
         if (condition) {
@@ -1888,20 +2099,21 @@ function InnerCanvas({ onExportReady, onImportReady }) {
         } else {
           edgeLabel = `case ${caseIndex}`;
         }
-      } else if (newConnection.sourceHandle === 'else') {
+      } else if (normalizedSourceHandle === 'else') {
         edgeColor = '#9E9E9E'; // Gray for else/default
         edgeLabel = 'else';
-      } else if (newConnection.sourceHandle?.startsWith('switch-')) {
+      } else if (isSwitchCaseHandle(normalizedSourceHandle)) {
         edgeColor = '#9C27B0'; // Purple for switch cases
-        const caseIndex = newConnection.sourceHandle.replace('switch-', '');
         const sourceNode = nodes.find(n => n.id === newConnection.source);
-        const caseItem = sourceNode?.data?.cases?.[parseInt(caseIndex, 10)];
-        if (caseItem) {
+        const { caseItem, index } = findSwitchCaseByHandle(sourceNode, normalizedSourceHandle);
+        if (caseItem && caseItem.value) {
           edgeLabel = `${caseItem.value}`;
+        } else if (index >= 0) {
+          edgeLabel = `case ${index}`;
         } else {
-          edgeLabel = `case ${caseIndex}`;
+          edgeLabel = 'case';
         }
-      } else if (newConnection.sourceHandle === 'default') {
+      } else if (normalizedSourceHandle === 'default') {
         edgeColor = '#9E9E9E'; // Gray for default
         const sourceNode = nodes.find(n => n.id === newConnection.source);
         edgeLabel = sourceNode?.data?.defaultLabel || 'default';
@@ -1910,29 +2122,31 @@ function InnerCanvas({ onExportReady, onImportReady }) {
       // Update the edge with new connection, preserving some properties
       setEdges((eds) => {
         // Check if new edge ID would conflict with existing edges
-        const newEdgeId = `e${newConnection.source}-${newConnection.target}`;
-        const hasConflict = eds.some(edge => edge.id === newEdgeId && edge.id !== oldEdge.id);
+        const baseEdgeId = buildEdgeId({
+          source: newConnection.source,
+          sourceHandle: normalizedSourceHandle,
+          target: newConnection.target,
+          targetHandle: normalizedTargetHandle,
+        });
+        const hasConflict = eds.some(edge => edge.id === baseEdgeId && edge.id !== oldEdge.id);
         
         // If reconnecting to the same node, keep the original ID to preserve selection
         const isReconnectingToSameNode = 
           oldEdge.source === newConnection.source && 
           oldEdge.target === newConnection.target &&
-          oldEdge.sourceHandle === newConnection.sourceHandle &&
-          oldEdge.targetHandle === newConnection.targetHandle;
+          oldEdge.sourceHandle === normalizedSourceHandle &&
+          oldEdge.targetHandle === normalizedTargetHandle;
         
         // If there's a conflict, generate a unique ID (unless reconnecting to same node)
-        let finalEdgeId = isReconnectingToSameNode ? oldEdge.id : newEdgeId;
+        let finalEdgeId = isReconnectingToSameNode ? oldEdge.id : baseEdgeId;
         if (hasConflict && !isReconnectingToSameNode) {
           let counter = 1;
-          while (eds.some(edge => edge.id === `${newEdgeId}-${counter}`)) {
+          while (eds.some(edge => edge.id === `${baseEdgeId}__${counter}`)) {
             counter++;
           }
-          finalEdgeId = `${newEdgeId}-${counter}`;
+          finalEdgeId = `${baseEdgeId}__${counter}`;
         }
 
-        // Preserve selection state - edge is selected since we only allow updates on selected edges
-        const wasSelected = true; // Always true since we only allow updates on selected edges
-        
         // Selected edges use primary blue for marker and thicker stroke
         const selectedMarkerColor = '#041295'; // Primary blue for selected state
         const strokeWidth = 4; // Thicker stroke for selected edges
@@ -1943,8 +2157,8 @@ function InnerCanvas({ onExportReady, onImportReady }) {
               ...edge,
               source: newConnection.source,
               target: newConnection.target,
-              sourceHandle: newConnection.sourceHandle || edge.sourceHandle || 'right',
-              targetHandle: newConnection.targetHandle || edge.targetHandle || 'left',
+              sourceHandle: normalizedSourceHandle,
+              targetHandle: normalizedTargetHandle,
               // Update edge id to reflect new connection (or keep original if reconnecting to same node)
               id: finalEdgeId,
               // Preserve selection state - always true for updated edges
