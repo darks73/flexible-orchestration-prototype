@@ -60,6 +60,22 @@ const buildEdgeId = ({ source, sourceHandle, target, targetHandle }) => {
   return `e-${parts.join('--')}`;
 };
 
+const createDefaultHttpAuthentication = () => ({
+  type: 'none',
+  username: '',
+  password: '',
+  token: '',
+  apiKeyName: '',
+  apiKeyValue: '',
+});
+
+const createDefaultHttpResponseStorage = () => ({
+  attributeName: 'httpResponse',
+  storeCode: true,
+  storeHeaders: true,
+  storeBody: true,
+});
+
 // Custom node components
 const StartNode = ({ data, selected }) => (
   <div className={`journey-start-node ${selected ? 'selected' : ''}`}>
@@ -240,7 +256,7 @@ const HttpBackendNode = ({ data, selected }) => (
       <span className="material-icons" style={{ fontSize: '20px', color: '#041295' }}>http</span>
       <div className="frontend-form-title">{data.label || 'HTTP Request'}</div>
     </div>
-    <div className="frontend-form-subtitle">{data.nodeType === 'backend' ? 'Backend' : 'Frontend'}</div>
+    <div className="frontend-form-subtitle">{data.nodeType === 'backend' ? 'Internal' : 'External'}</div>
     {/* Input */}
     <Handle
       type="target"
@@ -832,6 +848,57 @@ function InnerCanvas({ onExportReady, onImportReady }) {
       return;
     }
 
+    const needsInitialization = nodes.some(
+      (node) =>
+        node.type === 'httpRequest' &&
+        (!node.data?.authentication || !node.data?.responseStorage)
+    );
+
+    if (!needsInitialization) {
+      return;
+    }
+
+    setNodes((nds) =>
+      nds.map((node) => {
+        if (node.type === 'httpRequest') {
+          const nextData = { ...node.data };
+          if (!nextData.authentication) {
+            nextData.authentication = createDefaultHttpAuthentication();
+          }
+          if (!nextData.responseStorage) {
+            nextData.responseStorage = createDefaultHttpResponseStorage();
+          }
+          return {
+            ...node,
+            data: nextData,
+          };
+        }
+        return node;
+      })
+    );
+  }, [nodes, setNodes]);
+
+  const selectedHttpAuthentication = React.useMemo(() => {
+    const base = createDefaultHttpAuthentication();
+    if (!selectedHttpNode?.data?.authentication) {
+      return base;
+    }
+    return { ...base, ...selectedHttpNode.data.authentication };
+  }, [selectedHttpNode?.data?.authentication]);
+
+  const selectedHttpResponseStorage = React.useMemo(() => {
+    const base = createDefaultHttpResponseStorage();
+    if (!selectedHttpNode?.data?.responseStorage) {
+      return base;
+    }
+    return { ...base, ...selectedHttpNode.data.responseStorage };
+  }, [selectedHttpNode?.data?.responseStorage]);
+
+  React.useEffect(() => {
+    if (!nodes?.length) {
+      return;
+    }
+
     const legacyMappings = [];
     let shouldUpdateNodes = false;
 
@@ -972,7 +1039,8 @@ function InnerCanvas({ onExportReady, onImportReady }) {
     if (!selectedHttpNode) return;
     // restore active tab from localStorage
     const savedTab = localStorage.getItem(`sidesheetTab:${selectedHttpNode.id}`);
-    setActiveHttpTab(savedTab === 'request' ? 'request' : savedTab === 'context' ? 'context' : 'details');
+    const validTabs = ['details', 'request', 'authentication', 'response'];
+    setActiveHttpTab(validTabs.includes(savedTab) ? savedTab : 'details');
   }, [selectedHttpNode?.id]);
 
   // hydrate JSON Parser node tab when selection changes
@@ -1246,6 +1314,34 @@ function InnerCanvas({ onExportReady, onImportReady }) {
     }));
   }, [activeHttpNodeId, setNodes]);
 
+  const updateHttpNodeAuthentication = useCallback((updater) => {
+    setNodes((nds) =>
+      nds.map((node) => {
+        if (node.id !== activeHttpNodeId) {
+          return node;
+        }
+
+        const currentAuth = {
+          ...createDefaultHttpAuthentication(),
+          ...(node.data?.authentication || {}),
+        };
+
+        const nextAuth =
+          typeof updater === 'function'
+            ? updater(currentAuth)
+            : { ...currentAuth, ...updater };
+
+        return {
+          ...node,
+          data: {
+            ...node.data,
+            authentication: nextAuth,
+          },
+        };
+      })
+    );
+  }, [activeHttpNodeId, setNodes]);
+
   const updateHttpNodeHeader = useCallback((index, key, value) => {
     setNodes((nds) => nds.map(node => {
       if (node.id === activeHttpNodeId) {
@@ -1281,37 +1377,32 @@ function InnerCanvas({ onExportReady, onImportReady }) {
     }));
   }, [activeHttpNodeId, setNodes]);
 
-  const updateHttpNodeContextVariable = useCallback((index, value) => {
-    setNodes((nds) => nds.map(node => {
-      if (node.id === activeHttpNodeId) {
-        const contextVariables = [...(node.data?.contextVariables || [])];
-        contextVariables[index] = value;
-        return { ...node, data: { ...node.data, contextVariables } };
-      }
-      return node;
-    }));
-  }, [activeHttpNodeId, setNodes]);
+  const updateHttpNodeResponseStorage = useCallback((updater) => {
+    setNodes((nds) =>
+      nds.map((node) => {
+        if (node.id !== activeHttpNodeId) {
+          return node;
+        }
 
-  const addHttpNodeContextVariable = useCallback(() => {
-    setNodes((nds) => nds.map(node => {
-      if (node.id === activeHttpNodeId) {
-        const contextVariables = [...(node.data?.contextVariables || [])];
-        contextVariables.push('');
-        return { ...node, data: { ...node.data, contextVariables } };
-      }
-      return node;
-    }));
-  }, [activeHttpNodeId, setNodes]);
+        const currentStorage = {
+          ...createDefaultHttpResponseStorage(),
+          ...(node.data?.responseStorage || {}),
+        };
 
-  const removeHttpNodeContextVariable = useCallback((index) => {
-    setNodes((nds) => nds.map(node => {
-      if (node.id === activeHttpNodeId) {
-        const contextVariables = [...(node.data?.contextVariables || [])];
-        contextVariables.splice(index, 1);
-        return { ...node, data: { ...node.data, contextVariables } };
-      }
-      return node;
-    }));
+        const nextStorage =
+          typeof updater === 'function'
+            ? updater(currentStorage)
+            : { ...currentStorage, ...updater };
+
+        return {
+          ...node,
+          data: {
+            ...node.data,
+            responseStorage: nextStorage,
+          },
+        };
+      })
+    );
   }, [activeHttpNodeId, setNodes]);
 
   // Update handlers for JSON Parser node
@@ -1864,8 +1955,9 @@ function InnerCanvas({ onExportReady, onImportReady }) {
         followRedirects: true,
         headers: [],
         caCertificate: '',
-        contextVariables: [],
         requestTemplate: '',
+        authentication: createDefaultHttpAuthentication(),
+        responseStorage: createDefaultHttpResponseStorage(),
       } : nodeType === 'jsonParser' ? {
         label,
         sourceVariable: 'data',
@@ -3476,10 +3568,14 @@ function InnerCanvas({ onExportReady, onImportReady }) {
               setActiveHttpTab('request');
               if (selectedHttpNode?.id) localStorage.setItem(`sidesheetTab:${selectedHttpNode.id}`, 'request');
             }}>Request</button>
-            <button className={`tab-btn ${activeHttpTab==='context'?'active':''}`} onClick={()=>{
-              setActiveHttpTab('context');
-              if (selectedHttpNode?.id) localStorage.setItem(`sidesheetTab:${selectedHttpNode.id}`, 'context');
-            }}>Context</button>
+            <button className={`tab-btn ${activeHttpTab==='authentication'?'active':''}`} onClick={()=>{
+              setActiveHttpTab('authentication');
+              if (selectedHttpNode?.id) localStorage.setItem(`sidesheetTab:${selectedHttpNode.id}`, 'authentication');
+            }}>Authentication</button>
+            <button className={`tab-btn ${activeHttpTab==='response'?'active':''}`} onClick={()=>{
+              setActiveHttpTab('response');
+              if (selectedHttpNode?.id) localStorage.setItem(`sidesheetTab:${selectedHttpNode.id}`, 'response');
+            }}>Response</button>
           </div>
           <div className="sidesheet-body">
             {activeHttpTab === 'details' && (
@@ -3501,8 +3597,8 @@ function InnerCanvas({ onExportReady, onImportReady }) {
                   value={selectedHttpNode.data?.nodeType || 'backend'}
                   onChange={(e) => updateHttpNodeProperty('nodeType', e.target.value)}
                 >
-                  <option value="frontend">Frontend</option>
-                  <option value="backend">Backend</option>
+                  <option value="frontend">External</option>
+                  <option value="backend">Internal</option>
                 </select>
               </div>
             )}
@@ -3608,42 +3704,228 @@ function InnerCanvas({ onExportReady, onImportReady }) {
                 </div>
               </div>
             )}
-            {activeHttpTab === 'context' && (
+            {activeHttpTab === 'authentication' && (
               <div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                  <label className="input-label" style={{ margin: 0 }}>Store Variables in Context</label>
-                  <button className="btn-secondary" onClick={addHttpNodeContextVariable} style={{ padding: '4px 8px', fontSize: '12px' }}>
-                    Add Variable
-                  </button>
-                </div>
-                <div style={{ fontSize: '12px', color: 'var(--color-gray-500)', marginBottom: '12px' }}>
-                  Select which response fields to store in context: data, status, statusText, headers, config
-                </div>
-                {(selectedHttpNode.data?.contextVariables || []).map((variable, idx) => (
-                  <div key={idx} style={{ display: 'flex', gap: '8px', marginBottom: '8px', alignItems: 'center' }}>
-                    <select
+                <label className="input-label" htmlFor="http-auth-type">Authentication Type</label>
+                <select
+                  id="http-auth-type"
+                  className="text-input"
+                  value={selectedHttpAuthentication.type || 'none'}
+                  onChange={(e) => {
+                    const newType = e.target.value;
+                    updateHttpNodeAuthentication((current) => ({
+                      ...createDefaultHttpAuthentication(),
+                      ...current,
+                      type: newType,
+                    }));
+                  }}
+                >
+                  {selectedHttpNode.data?.nodeType === 'frontend' ? (
+                    <>
+                      <option value="none">None</option>
+                      <option value="basic">Basic Auth</option>
+                      <option value="bearer">Bearer Token</option>
+                      <option value="apiKey">API Key</option>
+                    </>
+                  ) : (
+                    <>
+                      <option value="none">None</option>
+                      <option value="m2m">M2M Token</option>
+                      <option value="s2s">S2S Token</option>
+                    </>
+                  )}
+                </select>
+                <div style={{ height: '12px' }} />
+                {selectedHttpNode.data?.nodeType === 'frontend' && selectedHttpAuthentication.type === 'basic' && (
+                  <>
+                    <label className="input-label" htmlFor="http-auth-username">Username</label>
+                    <input
+                      id="http-auth-username"
                       className="text-input"
-                      style={{ flex: 1 }}
-                      value={variable}
-                      onChange={(e) => updateHttpNodeContextVariable(idx, e.target.value)}
+                      type="text"
+                      value={selectedHttpAuthentication.username || ''}
+                      onChange={(e) =>
+                        updateHttpNodeAuthentication((current) => ({
+                          ...current,
+                          username: e.target.value,
+                        }))
+                      }
+                    />
+                    <div style={{ height: '12px' }} />
+                    <label className="input-label" htmlFor="http-auth-password">Password</label>
+                    <input
+                      id="http-auth-password"
+                      className="text-input"
+                      type="password"
+                      value={selectedHttpAuthentication.password || ''}
+                      onChange={(e) =>
+                        updateHttpNodeAuthentication((current) => ({
+                          ...current,
+                          password: e.target.value,
+                        }))
+                      }
+                    />
+                  </>
+                )}
+                {selectedHttpNode.data?.nodeType === 'frontend' && selectedHttpAuthentication.type === 'bearer' && (
+                  <>
+                    <label className="input-label" htmlFor="http-auth-token">Bearer Token</label>
+                    <textarea
+                      id="http-auth-token"
+                      className="text-input"
+                      rows={4}
+                      value={selectedHttpAuthentication.token || ''}
+                      onChange={(e) =>
+                        updateHttpNodeAuthentication((current) => ({
+                          ...current,
+                          token: e.target.value,
+                        }))
+                      }
+                      placeholder="eyJhbGciOi..."
+                    />
+                  </>
+                )}
+                {selectedHttpNode.data?.nodeType === 'frontend' && selectedHttpAuthentication.type === 'apiKey' && (
+                  <>
+                    <label className="input-label" htmlFor="http-auth-api-key-name">Header Name</label>
+                    <input
+                      id="http-auth-api-key-name"
+                      className="text-input"
+                      type="text"
+                      value={selectedHttpAuthentication.apiKeyName || ''}
+                      onChange={(e) =>
+                        updateHttpNodeAuthentication((current) => ({
+                          ...current,
+                          apiKeyName: e.target.value,
+                        }))
+                      }
+                      placeholder="Authorization"
+                    />
+                    <div style={{ height: '12px' }} />
+                    <label className="input-label" htmlFor="http-auth-api-key-value">Header Value</label>
+                    <input
+                      id="http-auth-api-key-value"
+                      className="text-input"
+                      type="text"
+                      value={selectedHttpAuthentication.apiKeyValue || ''}
+                      onChange={(e) =>
+                        updateHttpNodeAuthentication((current) => ({
+                          ...current,
+                          apiKeyValue: e.target.value,
+                        }))
+                      }
+                      placeholder="Bearer {{ secrets.apiToken }}"
+                    />
+                  </>
+                )}
+                {selectedHttpNode.data?.nodeType === 'frontend' && selectedHttpAuthentication.type === 'none' && (
+                  <p style={{ marginTop: '4px', color: '#555', fontSize: '12px' }}>
+                    Requests will be sent without additional authentication headers.
+                  </p>
+                )}
+                {selectedHttpNode.data?.nodeType === 'backend' && selectedHttpAuthentication.type === 'none' && (
+                  <p style={{ marginTop: '4px', color: '#555', fontSize: '12px' }}>
+                    No internal token will be attached to this backend request.
+                  </p>
+                )}
+                {selectedHttpNode.data?.nodeType === 'backend' && selectedHttpAuthentication.type === 'm2m' && (
+                  <>
+                    <label className="input-label" htmlFor="http-auth-m2m-client">M2M Client</label>
+                    <select
+                      id="http-auth-m2m-client"
+                      className="text-input"
+                      value={selectedHttpAuthentication.clientId || ''}
+                      onChange={(e) =>
+                        updateHttpNodeAuthentication((current) => ({
+                          ...current,
+                          clientId: e.target.value,
+                        }))
+                      }
                     >
-                      <option value="">Select variable...</option>
-                      <option value="data">data</option>
-                      <option value="status">status</option>
-                      <option value="statusText">statusText</option>
-                      <option value="headers">headers</option>
-                      <option value="config">config</option>
+                      <option value="">Select client...</option>
+                      <option value="client-001">Access Client 001</option>
+                      <option value="client-002">Access Client 002</option>
+                      <option value="client-003">Access Client 003</option>
                     </select>
-                    <button 
-                      className="btn-danger" 
-                      onClick={() => removeHttpNodeContextVariable(idx)}
-                      style={{ padding: '4px 8px' }}
-                      title="Remove"
-                    >
-                      <span className="material-icons" style={{ fontSize: '16px' }}>delete_outline</span>
-                    </button>
+                    <p style={{ marginTop: '4px', color: '#555', fontSize: '12px' }}>
+                      Client credentials will be fetched from Access during execution.
+                    </p>
+                  </>
+                )}
+                {selectedHttpNode.data?.nodeType === 'backend' && selectedHttpAuthentication.type === 's2s' && (
+                  <p style={{ marginTop: '4px', color: '#555', fontSize: '12px' }}>
+                    Service-to-service token will be generated automatically at runtime.
+                  </p>
+                )}
+              </div>
+            )}
+            {activeHttpTab === 'response' && (
+              <div>
+                <label className="input-label" htmlFor="http-response-attribute">Response Attribute Name</label>
+                <input
+                  id="http-response-attribute"
+                  className="text-input"
+                  type="text"
+                  value={selectedHttpResponseStorage.attributeName || ''}
+                  onChange={(e) =>
+                    updateHttpNodeResponseStorage((current) => ({
+                      ...current,
+                      attributeName: e.target.value,
+                    }))
+                  }
+                  placeholder="httpResponse"
+                />
+                <div style={{ fontSize: '12px', color: 'var(--color-gray-500)', marginTop: '4px' }}>
+                  This attribute will store the response data for this request at runtime.
+                </div>
+
+                <div style={{ marginTop: '24px' }}>
+                  <label className="input-label" style={{ margin: 0 }}>Store Response Parts</label>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '8px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <input
+                        type="checkbox"
+                        id="http-response-store-code"
+                        checked={!!selectedHttpResponseStorage.storeCode}
+                        onChange={(e) =>
+                          updateHttpNodeResponseStorage((current) => ({
+                            ...current,
+                            storeCode: e.target.checked,
+                          }))
+                        }
+                      />
+                      <label className="input-label" htmlFor="http-response-store-code" style={{ margin: 0 }}>Status Code</label>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <input
+                        type="checkbox"
+                        id="http-response-store-headers"
+                        checked={!!selectedHttpResponseStorage.storeHeaders}
+                        onChange={(e) =>
+                          updateHttpNodeResponseStorage((current) => ({
+                            ...current,
+                            storeHeaders: e.target.checked,
+                          }))
+                        }
+                      />
+                      <label className="input-label" htmlFor="http-response-store-headers" style={{ margin: 0 }}>Headers</label>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <input
+                        type="checkbox"
+                        id="http-response-store-body"
+                        checked={!!selectedHttpResponseStorage.storeBody}
+                        onChange={(e) =>
+                          updateHttpNodeResponseStorage((current) => ({
+                            ...current,
+                            storeBody: e.target.checked,
+                          }))
+                        }
+                      />
+                      <label className="input-label" htmlFor="http-response-store-body" style={{ margin: 0 }}>Body</label>
+                    </div>
                   </div>
-                ))}
+                </div>
               </div>
             )}
           </div>
