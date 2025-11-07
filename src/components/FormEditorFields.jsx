@@ -1,4 +1,5 @@
-import React from 'react';
+import React, { useCallback, useMemo, useRef } from 'react';
+import { renderMarkdown } from '../utils/markdown.js';
 
 export default function FormEditorFields({ element, onChange }) {
   if (!element) return <div className="muted">Select an element to edit</div>;
@@ -17,6 +18,47 @@ export default function FormEditorFields({ element, onChange }) {
 
   const b = element;
   const v = element.validations || {};
+  const markdownEditorRef = useRef(null);
+
+  const applyWrappedFormatting = useCallback((prefix, suffix = prefix, placeholder = 'text') => {
+    const textarea = markdownEditorRef.current;
+    if (!textarea) return;
+    const { selectionStart, selectionEnd, value } = textarea;
+    const selected = selectionStart !== selectionEnd ? value.slice(selectionStart, selectionEnd) : placeholder;
+    const before = value.slice(0, selectionStart);
+    const after = value.slice(selectionEnd);
+    const nextValue = `${before}${prefix}${selected}${suffix}${after}`;
+    set('text', nextValue);
+    requestAnimationFrame(() => {
+      textarea.focus();
+      const start = before.length + prefix.length;
+      const end = start + selected.length;
+      textarea.setSelectionRange(start, end);
+    });
+  }, [set]);
+
+  const applyBulletList = useCallback(() => {
+    const textarea = markdownEditorRef.current;
+    if (!textarea) return;
+    const { selectionStart, selectionEnd, value } = textarea;
+    const before = value.slice(0, selectionStart);
+    const selection = value.slice(selectionStart, selectionEnd) || 'List item';
+    const after = value.slice(selectionEnd);
+    const lines = selection.split('\n').map((line) => {
+      const trimmed = line.trim();
+      return trimmed.startsWith('- ') ? trimmed : `- ${trimmed || 'List item'}`;
+    });
+    const nextValue = `${before}${lines.join('\n')}${after}`;
+    set('text', nextValue);
+    requestAnimationFrame(() => {
+      textarea.focus();
+      const start = before.length;
+      const end = start + lines.join('\n').length;
+      textarea.setSelectionRange(start, end);
+    });
+  }, [set]);
+
+  const labelTextPreview = useMemo(() => renderMarkdown(b.text || ''), [b.text]);
 
   return (
     <div className="editor-fields">
@@ -30,7 +72,118 @@ export default function FormEditorFields({ element, onChange }) {
       <label className="input-label">Localization key</label>
       <input className="text-input" value={b.i18nKey || ''} onChange={(e) => set('i18nKey', e.target.value)} />
 
-      {b.type !== 'label' && (
+      {b.type === 'row' && (
+        <>
+          <div className="section-title">Layout</div>
+          <div className="layout-toolbar">
+            {[
+              { value: 'left', icon: 'format_align_left', label: 'Align left' },
+              { value: 'right', icon: 'format_align_right', label: 'Align right' },
+              { value: 'block', icon: 'view_agenda', label: 'Stack vertically' },
+              { value: 'distribute', icon: 'view_column', label: 'Distribute evenly' },
+            ].map((option) => (
+              <button
+                key={option.value}
+                type="button"
+                className={`btn-secondary layout-icon-btn${(b.layout || 'left') === option.value ? ' active' : ''}`}
+                aria-pressed={(b.layout || 'left') === option.value}
+                aria-label={option.label}
+                title={option.label}
+                onClick={() => set('layout', option.value)}
+              >
+                <span className="material-icons">{option.icon}</span>
+              </button>
+            ))}
+          </div>
+        </>
+      )}
+
+      {b.type === 'label' && (
+        <>
+          <div className="section-title">Text Alignment</div>
+          <div className="text-align-toolbar">
+            {[
+              { value: 'left', icon: 'format_align_left', label: 'Align left' },
+              { value: 'center', icon: 'format_align_center', label: 'Align center' },
+              { value: 'right', icon: 'format_align_right', label: 'Align right' },
+              { value: 'justify', icon: 'format_align_justify', label: 'Justify' },
+            ].map((option) => (
+              <button
+                key={option.value}
+                type="button"
+                className={`btn-secondary text-align-icon-btn${(b.textAlign || 'left') === option.value ? ' active' : ''}`}
+                aria-pressed={(b.textAlign || 'left') === option.value}
+                aria-label={option.label}
+                title={option.label}
+                onClick={() => set('textAlign', option.value)}
+              >
+                <span className="material-icons">{option.icon}</span>
+              </button>
+            ))}
+          </div>
+          <div className="section-title">Content</div>
+          <div className="markdown-editor">
+            <div className="markdown-toolbar">
+              <button
+                type="button"
+                onClick={() => applyWrappedFormatting('**')}
+                className="btn-secondary markdown-icon-btn"
+                aria-label="Bold"
+                title="Bold"
+              >
+                <span className="material-icons">format_bold</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => applyWrappedFormatting('*')}
+                className="btn-secondary markdown-icon-btn"
+                aria-label="Italic"
+                title="Italic"
+              >
+                <span className="material-icons">format_italic</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => applyWrappedFormatting('`')}
+                className="btn-secondary markdown-icon-btn"
+                aria-label="Inline code"
+                title="Inline code"
+              >
+                <span className="material-icons">code</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => applyWrappedFormatting('# ', '', 'Heading')}
+                className="btn-secondary markdown-icon-btn"
+                aria-label="Heading"
+                title="Heading"
+              >
+                <span className="material-icons">title</span>
+              </button>
+              <button
+                type="button"
+                onClick={applyBulletList}
+                className="btn-secondary markdown-icon-btn"
+                aria-label="Bulleted list"
+                title="Bulleted list"
+              >
+                <span className="material-icons">format_list_bulleted</span>
+              </button>
+            </div>
+            <textarea
+              ref={markdownEditorRef}
+              className="text-input markdown-textarea"
+              rows={6}
+              value={b.text || ''}
+              placeholder="Add formatted text using markdown..."
+              onChange={(e) => set('text', e.target.value)}
+            />
+            <div className="markdown-preview" dangerouslySetInnerHTML={{ __html: labelTextPreview }} />
+          </div>
+        </>
+      )}
+
+      {!['label', 'row'].includes(b.type) && (
         <>
           <label className="input-label">Value</label>
           <input className="text-input" value={String(b.value ?? '')} onChange={(e) => set('value', e.target.value)} />
@@ -40,11 +193,13 @@ export default function FormEditorFields({ element, onChange }) {
         </>
       )}
 
-      <div className="row">
-        <label className="input-label">Read only</label>
-        <input type="checkbox" checked={!!b.readOnly} onChange={(e) => set('readOnly', e.target.checked)} />
-      </div>
-      {b.type !== 'label' && (
+      {!['row'].includes(b.type) && (
+        <div className="row">
+          <label className="input-label">Read only</label>
+          <input type="checkbox" checked={!!b.readOnly} onChange={(e) => set('readOnly', e.target.checked)} />
+        </div>
+      )}
+      {!['label', 'button', 'row'].includes(b.type) && (
         <div className="row">
           <label className="input-label">Trim value</label>
           <input type="checkbox" checked={!!b.trim} onChange={(e) => set('trim', e.target.checked)} />
@@ -55,7 +210,7 @@ export default function FormEditorFields({ element, onChange }) {
       <input className="text-input" value={b.loginHint || ''} onChange={(e) => set('loginHint', e.target.value)} />
 
       <div className="section-title">Validations</div>
-      {b.type !== 'label' && b.type !== 'button' && (
+      {!['label', 'button', 'row'].includes(b.type) && (
         <>
           <div className="row">
             <label className="input-label">Required</label>

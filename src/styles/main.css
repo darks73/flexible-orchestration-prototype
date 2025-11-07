@@ -1441,6 +1441,116 @@ button.btn-tertiary {
     margin-left: 4px;
 }
 
+.preview-label-text {
+    color: var(--color-gray-900);
+    font-size: 14px;
+    line-height: 1.5;
+}
+
+.preview-label-text p {
+    margin: 0 0 8px;
+}
+
+.preview-label-text ul {
+    margin: 0 0 8px 16px;
+    padding-left: 16px;
+}
+
+.preview-row {
+    width: 100%;
+}
+
+.preview-label-text h1,
+.preview-label-text h2,
+.preview-label-text h3,
+.preview-label-text h4,
+.preview-label-text h5,
+.preview-label-text h6 {
+    margin: 12px 0 8px;
+    font-weight: 600;
+}
+
+.markdown-editor {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.markdown-toolbar {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.markdown-toolbar .markdown-icon-btn {
+    padding: 4px;
+    width: 32px;
+    height: 32px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.markdown-textarea {
+    font-family: var(--font-family-mono, 'Courier New', monospace);
+    min-height: 140px;
+}
+
+.markdown-preview {
+    border: 1px solid var(--color-gray-100);
+    border-radius: 4px;
+    padding: 8px;
+    background: var(--color-gray-25);
+    min-height: 80px;
+    font-size: 14px;
+    line-height: 1.5;
+}
+
+.markdown-preview ul {
+    margin-left: 16px;
+}
+
+.layout-toolbar {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-bottom: 12px;
+}
+
+.layout-icon-btn {
+    padding: 4px;
+    width: 32px;
+    height: 32px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.layout-icon-btn.active {
+    background: var(--color-primary-blue);
+    color: var(--color-white);
+}
+
+.text-align-toolbar {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-bottom: 12px;
+}
+
+.text-align-icon-btn {
+    padding: 4px;
+    width: 32px;
+    height: 32px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.text-align-icon-btn.active {
+    background: var(--color-primary-blue);
+    color: var(--color-white);
+}
 /* ============================================
    MATERIAL ICONS - Style Guide
    Single color Material Design icons with blue branding

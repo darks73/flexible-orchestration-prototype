@@ -848,6 +848,7 @@ function InnerCanvas({ onExportReady, onImportReady }) {
   const [activeContextOperationTab, setActiveContextOperationTab] = useState('details');
   const [formSchema, setFormSchema] = useState(null);
   const [selectedElementIndex, setSelectedElementIndex] = useState(null);
+  const [selectedChildPath, setSelectedChildPath] = useState(null);
   const [showImportModal, setShowImportModal] = useState(false);
   const [showImportFileModal, setShowImportFileModal] = useState(false);
   const [pendingImportData, setPendingImportData] = useState(null);
@@ -1089,12 +1090,13 @@ function InnerCanvas({ onExportReady, onImportReady }) {
     const fromNode = selectedFrontendForm.data?.formSchema;
     const fromStorage = loadFormSchema(selectedFrontendForm.id);
     const schema = fromNode || fromStorage || createEmptySchema();
-    setFormSchema(schema);
+    setFormSchema(ensureSchemaRowDefaults(schema));
     // restore active tab from localStorage
     const savedTab = localStorage.getItem(`sidesheetTab:${selectedFrontendForm.id}`);
     const validFormTabs = ['details', 'form', 'response'];
     setActiveTab(validFormTabs.includes(savedTab) ? savedTab : 'details');
     setSelectedElementIndex(null);
+    setSelectedChildPath(null);
   }, [selectedFrontendForm?.id]);
 
   // hydrate HTTP node tab when selection changes
@@ -1859,15 +1861,93 @@ function InnerCanvas({ onExportReady, onImportReady }) {
     return v.toString(16);
   });
 
+  const ensureRowLayout = (row) => {
+    if (!row || row.type !== 'row') return row;
+    return {
+      layout: 'left',
+      ...row,
+      layout: row.layout || 'left',
+    };
+  };
+
+  const ensureLabelDefaults = (label) => {
+    if (!label || label.type !== 'label') return label;
+    return {
+      textAlign: 'left',
+      ...label,
+      textAlign: label.textAlign || 'left',
+      text: label.text != null ? label.text : '',
+    };
+  };
+
+  const ensureElementDefaults = (element) => {
+    if (!element) return element;
+    if (element.type === 'row') {
+      return {
+        ...ensureRowLayout(element),
+        children: (element.children || []).map(ensureElementDefaults),
+      };
+    }
+    if (element.type === 'label') {
+      return ensureLabelDefaults(element);
+    }
+    return element;
+  };
+
+  const ensureSchemaRowDefaults = (schema) => {
+    if (!schema) return schema;
+    const mapElements = (elements) =>
+      (elements || []).map((el) => {
+        if (!el) return el;
+        if (el.type === 'row') {
+          return {
+            ...ensureRowLayout(el),
+            children: mapElements(el.children || []),
+          };
+        }
+        if (el.type === 'label') {
+          return ensureLabelDefaults(el);
+        }
+        return el;
+      });
+    return {
+      ...schema,
+      elements: mapElements(schema.elements || []),
+    };
+  };
+
   const addElement = (type) => {
     if (!formSchema) return;
     const id = genGuid();
-    const base = { id, type, label: type === 'button' ? 'Submit' : id, validations: {} };
+    if (type === 'label') {
+      const el = {
+        id,
+        type,
+        label: 'Label/Text',
+        text: 'Add your text here',
+        textAlign: 'left',
+      };
+      setFormSchema(s => {
+        const newElements = [...(s.elements||[]), el];
+        setSelectedElementIndex(newElements.length - 1);
+        setSelectedChildPath(null);
+        return { ...s, elements: newElements };
+      });
+      setActiveTab('form');
+      return;
+    }
+    const base =
+      type === 'row'
+        ? { id, type, label: 'Group', layout: 'left', children: [] }
+        : type === 'label'
+          ? { id, type, label: 'Label/Text', text: 'Add your text here', textAlign: 'left' }
+          : { id, type, label: type === 'button' ? 'Submit' : id, validations: {} };
     const el = type === 'checkbox' ? { ...base, value: false } : base;
     setFormSchema(s => {
       const newElements = [...(s.elements||[]), el];
       // Select the newly added element (last in array)
       setSelectedElementIndex(newElements.length - 1);
+      setSelectedChildPath(null);
       return { ...s, elements: newElements };
     });
     setActiveTab('form');
@@ -1887,65 +1967,147 @@ function InnerCanvas({ onExportReady, onImportReady }) {
           seenChild.add(ch.id);
           dedupChildren.push(ch);
         }
-        dedupRoot.push({ ...el, children: dedupChildren });
+        dedupRoot.push({
+          ...ensureRowLayout(el),
+          children: dedupChildren.map(ensureElementDefaults),
+        });
       } else {
-        dedupRoot.push(el);
+        dedupRoot.push(ensureElementDefaults(el));
       }
     }
-    return { ...schema, elements: dedupRoot };
+    return { ...schema, elements: dedupRoot.map(ensureElementDefaults) };
   };
 
-  const updateElement = (idx, next) => {
-    let previousLabel;
-    let nextLabel;
+  const getElementLabel = (element) => element ? element.label || element.i18nKey || element.id : undefined;
 
-    setFormSchema((schema) => {
-      const arr = [...schema.elements];
-      const prev = arr[idx];
-      previousLabel = prev ? prev.label || prev.i18nKey || prev.id : undefined;
-      nextLabel = next ? next.label || next.i18nKey || next.id : undefined;
-      arr[idx] = next;
-      return { ...schema, elements: arr };
-    });
+  const updateElementAtPath = useCallback(
+    (path, next) => {
+      let previousLabel;
+      let nextLabel;
 
-    if (
-      previousLabel &&
-      nextLabel &&
-      previousLabel !== nextLabel
-    ) {
-      updateFormResponseStorage((storage) => {
-        if (!storage.selectedFields?.includes(previousLabel)) {
-          return storage;
+      setFormSchema((schema) => {
+        const arr = [...(schema.elements || [])];
+        if (!arr.length) return schema;
+
+        if (path?.rowIdx != null && path?.childIdx != null) {
+          const rowIdx = path.rowIdx;
+          const childIdx = path.childIdx;
+          if (rowIdx >= arr.length) return schema;
+          const row = arr[rowIdx];
+          if (!row || row.type !== 'row') return schema;
+          const children = [...(row.children || [])];
+          if (childIdx >= children.length) return schema;
+          const prevChild = children[childIdx];
+          previousLabel = getElementLabel(prevChild);
+          children[childIdx] = next;
+          nextLabel = getElementLabel(next);
+          arr[rowIdx] = { ...row, children };
+          return { ...schema, elements: arr };
         }
-        const updatedSelection = storage.selectedFields.map((label) =>
-          label === previousLabel ? nextLabel : label
-        );
-        return {
-          ...storage,
-          selectedFields: updatedSelection,
-        };
+
+        const idx = path?.idx ?? path;
+        if (idx == null || idx >= arr.length) return schema;
+
+        const prev = arr[idx];
+        previousLabel = getElementLabel(prev);
+        arr[idx] = next;
+        nextLabel = getElementLabel(next);
+        return { ...schema, elements: arr };
       });
+
+      if (
+        previousLabel &&
+        nextLabel &&
+        previousLabel !== nextLabel
+      ) {
+        updateFormResponseStorage((storage) => {
+          if (!storage.selectedFields?.includes(previousLabel)) {
+            return storage;
+          }
+          return {
+            ...storage,
+            selectedFields: storage.selectedFields.map((label) =>
+              label === previousLabel ? nextLabel : label
+            ),
+          };
+        });
+      }
+    },
+    [setFormSchema, updateFormResponseStorage]
+  );
+
+  const updateElement = useCallback(
+    (idx, next) => updateElementAtPath({ idx }, next),
+    [updateElementAtPath]
+  );
+
+  const updateChildElement = useCallback(
+    (rowIdx, childIdx, next) => updateElementAtPath({ rowIdx, childIdx }, next),
+    [updateElementAtPath]
+  );
+
+  const selectedElement = React.useMemo(() => {
+    if (!formSchema) return null;
+    if (selectedChildPath && selectedChildPath.rowIdx != null && selectedChildPath.childIdx != null) {
+      return formSchema.elements?.[selectedChildPath.rowIdx]?.children?.[selectedChildPath.childIdx] || null;
     }
-  };
+    if (selectedElementIndex != null) {
+      return formSchema.elements?.[selectedElementIndex] || null;
+    }
+    return null;
+  }, [formSchema, selectedChildPath, selectedElementIndex]);
+
+  const handleSelectedElementChange = useCallback(
+    (next) => {
+      if (!next) return;
+      if (selectedChildPath && selectedChildPath.rowIdx != null && selectedChildPath.childIdx != null) {
+        updateChildElement(selectedChildPath.rowIdx, selectedChildPath.childIdx, next);
+      } else if (selectedElementIndex != null) {
+        updateElement(selectedElementIndex, next);
+      }
+    },
+    [selectedChildPath, selectedElementIndex, updateChildElement, updateElement]
+  );
 
   const addChild = (rowIdx, type) => {
+    let newChildIdx = null;
     setFormSchema(s => {
       const arr = [...s.elements];
-      const row = { ...(arr[rowIdx] || { type:'row', children:[] }) };
-      row.children = [...(row.children||[]), { id: genGuid(), type, label: type==='button' ? 'Submit' : type }];
-      arr[rowIdx] = row;
+      const row = ensureRowLayout({ ...(arr[rowIdx] || { type:'row', children:[] }) });
+      const newChildren = [...(row.children||[])];
+      const newId = genGuid();
+      const child =
+        type === 'label'
+          ? { id: newId, type, label: 'Label/Text', text: 'Add your text here', textAlign: 'left' }
+          : { id: newId, type, label: type==='button' ? 'Submit' : type, validations: {} };
+      newChildren.push(child);
+      newChildIdx = newChildren.length - 1;
+      arr[rowIdx] = { ...row, children: newChildren };
       return { ...s, elements: arr };
     });
+    if (newChildIdx != null) {
+      setSelectedElementIndex(rowIdx);
+      setSelectedChildPath({ rowIdx, childIdx: newChildIdx });
+    }
   };
 
   const deleteChild = (rowIdx, childIdx) => {
     setFormSchema(s => {
       const arr = [...s.elements];
-      const row = { ...arr[rowIdx] };
+      const row = ensureRowLayout({ ...arr[rowIdx] });
       row.children = [...(row.children||[])];
       row.children.splice(childIdx,1);
       arr[rowIdx] = row;
       return { ...s, elements: arr };
+    });
+    setSelectedChildPath((cur) => {
+      if (!cur) return cur;
+      if (cur.rowIdx !== rowIdx) return cur;
+      if (cur.childIdx === childIdx) return null;
+      if (cur.childIdx > childIdx) {
+        return { rowIdx, childIdx: cur.childIdx - 1 };
+      }
+      return cur;
     });
   };
 
@@ -1959,14 +2121,11 @@ function InnerCanvas({ onExportReady, onImportReady }) {
     e.stopPropagation(); // Prevent bubbling to root drop handler
     try {
       const parsed = JSON.parse(e.dataTransfer.getData('application/json') || e.dataTransfer.getData('text/plain'));
+      let nextSelection = null;
       setFormSchema(s => {
-        const arr = [...(s.elements||[])];
+        const arr = [...(s.elements || [])];
         if (rowIdx >= arr.length || arr[rowIdx]?.type !== 'row') return s; // Validate row exists
-        
-        const to = { ...arr[rowIdx] };
-        if (!to.children) to.children = [];
-        to.children = [...to.children];
-        
+
         if (parsed.rootIdx != null) {
           // Moving from root into row
           if (parsed.rootIdx >= arr.length) {
@@ -1979,6 +2138,15 @@ function InnerCanvas({ onExportReady, onImportReady }) {
             return s;
           }
           const moving = spliced[0];
+          let targetRowIdx = rowIdx;
+          if (parsed.rootIdx < rowIdx) {
+            targetRowIdx = Math.max(0, rowIdx - 1);
+          }
+          if (targetRowIdx >= arr.length || arr[targetRowIdx]?.type !== 'row') {
+            console.warn('Target row missing after splice:', { targetRowIdx, arrLength: arr.length });
+            return s;
+          }
+          const to = ensureRowLayout({ ...arr[targetRowIdx] });
           // Ensure row is properly initialized
           if (!to.children) to.children = [];
           // Remove any duplicate by id before adding
@@ -1986,14 +2154,18 @@ function InnerCanvas({ onExportReady, onImportReady }) {
           // Insert at target position
           const insertPos = Math.min(Math.max(0, targetChildIdx), to.children.length);
           to.children.splice(insertPos, 0, moving);
-          arr[rowIdx] = to;
+          arr[targetRowIdx] = to;
+          nextSelection = { rowIdx: targetRowIdx, childIdx: insertPos };
           console.log('Moved element to row:', { rootIdx: parsed.rootIdx, rowIdx, targetChildIdx, insertPos, movingId: moving.id, newChildrenCount: to.children.length });
           return sanitizeSchema({ ...s, elements: arr });
         }
         if (parsed.rowIdx != null && parsed.childIdx != null) {
           // Moving within or between rows
+          const to = ensureRowLayout({ ...arr[rowIdx] });
+          if (!to.children) to.children = [];
+          to.children = [...to.children];
           if (parsed.rowIdx >= arr.length || !arr[parsed.rowIdx]?.children) return s;
-          const from = { ...arr[parsed.rowIdx] };
+          const from = ensureRowLayout({ ...arr[parsed.rowIdx] });
           const moving = from.children?.[parsed.childIdx];
           if (!moving) return s;
           from.children = [...from.children];
@@ -2004,10 +2176,15 @@ function InnerCanvas({ onExportReady, onImportReady }) {
           to.children.splice(Math.min(targetChildIdx, to.children.length), 0, moving);
           arr[parsed.rowIdx] = from;
           arr[rowIdx] = to;
+          nextSelection = { rowIdx, childIdx: Math.min(targetChildIdx, to.children.length - 1) };
           return sanitizeSchema({ ...s, elements: arr });
         }
         return s;
       });
+      if (nextSelection) {
+        setSelectedElementIndex(nextSelection.rowIdx);
+        setSelectedChildPath(nextSelection);
+      }
     } catch (err) {
       console.error('onChildDrop error:', err);
     }
@@ -2024,26 +2201,48 @@ function InnerCanvas({ onExportReady, onImportReady }) {
     let data;
     try { data = JSON.parse(e.dataTransfer.getData('application/json') || e.dataTransfer.getData('text/plain')); } catch {}
     if (!data) return;
+
+    let nextSelection = null;
     setFormSchema(s => {
       const arr = [...(s.elements||[])];
       if (data.rootIdx != null) {
         if (data.rootIdx === targetIdx) return s;
+        if (data.rootIdx < 0 || data.rootIdx >= arr.length) return s;
         const [item] = arr.splice(data.rootIdx, 1);
-        arr.splice(targetIdx, 0, item);
-        return sanitizeSchema({ ...s, elements: arr });
+        if (!item) return s;
+        const insertIdx = Math.min(Math.max(0, targetIdx), arr.length);
+        arr.splice(insertIdx, 0, item.type === 'row' ? ensureRowLayout(item) : item);
+        const normalized = sanitizeSchema({ ...s, elements: arr });
+        const newIdx = (normalized.elements || []).findIndex((el) => el?.id === item.id);
+        if (newIdx >= 0) {
+          nextSelection = { type: 'root', idx: newIdx };
+        }
+        return normalized;
       }
       if (data.rowIdx != null && data.childIdx != null) {
+        if (data.rowIdx < 0 || data.rowIdx >= arr.length) return s;
         const fromRow = { ...arr[data.rowIdx] };
         const moving = fromRow.children?.[data.childIdx];
         if (!moving) return s;
         fromRow.children = [...fromRow.children];
         fromRow.children.splice(data.childIdx,1);
         arr[data.rowIdx] = fromRow;
-        arr.splice(targetIdx, 0, moving);
-        return sanitizeSchema({ ...s, elements: arr });
+        const insertIdx = Math.min(Math.max(0, targetIdx), arr.length);
+        arr.splice(insertIdx, 0, moving);
+        const normalized = sanitizeSchema({ ...s, elements: arr });
+        const newIdx = (normalized.elements || []).findIndex((el) => el?.id === moving.id);
+        if (newIdx >= 0) {
+          nextSelection = { type: 'root', idx: newIdx };
+        }
+        return normalized;
       }
       return s;
     });
+
+    if (nextSelection?.type === 'root') {
+      setSelectedElementIndex(nextSelection.idx);
+      setSelectedChildPath(null);
+    }
   };
 
   const deleteElement = (idx) => {
@@ -2056,6 +2255,14 @@ function InnerCanvas({ onExportReady, onImportReady }) {
       if (cur == null) return cur;
       if (idx === cur) return null;
       if (idx < cur) return cur - 1;
+      return cur;
+    });
+    setSelectedChildPath((cur) => {
+      if (!cur) return cur;
+      if (cur.rowIdx === idx) return null;
+      if (cur.rowIdx > idx) {
+        return { rowIdx: cur.rowIdx - 1, childIdx: cur.childIdx };
+      }
       return cur;
     });
   };
@@ -4313,7 +4520,7 @@ function InnerCanvas({ onExportReady, onImportReady }) {
                     <button className="btn-secondary element-icon-btn" title="Add Checkbox" onClick={()=>addElement('checkbox')}>
                       <span className="material-icons">check_box_outline_blank</span>
                     </button>
-                    <button className="btn-secondary element-icon-btn" title="Add Label" onClick={()=>addElement('label')}>
+                    <button className="btn-secondary element-icon-btn" title="Add Label/Text" onClick={()=>addElement('label')}>
                       <span className="material-icons">label_outline</span>
                     </button>
                     <button className="btn-secondary element-icon-btn" title="Add Button" onClick={()=>addElement('button')}>
@@ -4331,12 +4538,12 @@ function InnerCanvas({ onExportReady, onImportReady }) {
                           draggable
                           onDragStart={(e)=>onDragStart(e, idx)}
                           onDrop={(e)=>onDrop(e, idx)}
-                          onClick={()=>setSelectedElementIndex(idx)}
+                          onClick={()=>{ setSelectedElementIndex(idx); setSelectedChildPath(null); }}
                         >
                           <span className="element-type">
                             <span className="material-icons">{getElementIcon(el.type)}</span>
                           </span>
-                          {selectedElementIndex===idx ? (
+                          {selectedElementIndex===idx && !selectedChildPath ? (
                             <input
                               className="text-input"
                               style={{ flex: 1, minWidth: 0 }}
@@ -4368,16 +4575,29 @@ function InnerCanvas({ onExportReady, onImportReady }) {
                             {(el.children||[]).map((child, cIdx) => (
                               <div
                                 key={child.id}
-                                className="element-item"
+                                className={`element-item ${selectedChildPath?.rowIdx === idx && selectedChildPath?.childIdx === cIdx ? 'selected' : ''}`}
                                 draggable
                                 onDragStart={(e)=>onChildDragStart(e, idx, cIdx)}
-                              onDrop={(e)=>{ e.stopPropagation(); onChildDrop(e, idx, cIdx); }}
-                                onClick={(e)=>e.stopPropagation()}
+                                onDrop={(e)=>{ e.stopPropagation(); onChildDrop(e, idx, cIdx); }}
+                                onClick={(e)=>{ e.stopPropagation(); setSelectedElementIndex(idx); setSelectedChildPath({ rowIdx: idx, childIdx: cIdx }); }}
                               >
                                 <span className="element-type">
                                   <span className="material-icons">{getElementIcon(child.type)}</span>
                                 </span>
-                                <span className="element-label">{child.label || child.i18nKey || child.id}</span>
+                                {selectedChildPath?.rowIdx === idx && selectedChildPath?.childIdx === cIdx ? (
+                                  <input
+                                    className="text-input"
+                                    style={{ flex: 1, minWidth: 0 }}
+                                    value={child.label || ''}
+                                    placeholder={child.i18nKey || child.id}
+                                    autoFocus
+                                    onMouseDown={(e)=>e.stopPropagation()}
+                                    onClick={(e)=>e.stopPropagation()}
+                                    onChange={(e)=>updateChildElement(idx, cIdx, { ...child, label: e.target.value })}
+                                  />
+                                ) : (
+                                  <span className="element-label">{child.label || child.i18nKey || child.id}</span>
+                                )}
                                 <button className="btn-danger" style={{ marginLeft:'auto', padding:'2px 6px', display: 'flex', alignItems: 'center', justifyContent: 'center' }} title="Remove" onClick={(e)=>{e.stopPropagation(); deleteChild(idx,cIdx);}}>
                                   <span className="material-icons" style={{ fontSize: '16px' }}>delete_outline</span>
                                 </button>
@@ -4398,12 +4618,12 @@ function InnerCanvas({ onExportReady, onImportReady }) {
                     schema={formSchema}
                     onSubmit={(values)=>console.log('Submit (simulate success):', values)}
                   />
-                  {selectedElementIndex != null && (
+                  {selectedElement && (
                     <>
                       <div className="section-title" style={{marginTop:'12px'}}>Properties</div>
                       <FormEditorFields
-                        element={formSchema?.elements?.[selectedElementIndex]}
-                        onChange={(next)=>updateElement(selectedElementIndex, next)}
+                        element={selectedElement}
+                        onChange={handleSelectedElementChange}
                       />
                     </>
                   )}

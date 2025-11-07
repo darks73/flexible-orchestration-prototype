@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from 'react';
+import { renderMarkdown } from '../utils/markdown.js';
 
 export default function FormPreview({ schema, onSubmit }) {
   const initialState = useMemo(() => {
@@ -49,11 +50,28 @@ export default function FormPreview({ schema, onSubmit }) {
     onSubmit?.(out);
   };
 
-  const renderEl = (el) => {
+  const renderEl = (el, parentLayout) => {
     if (el.type === 'row') {
+      const layout = el.layout || 'left';
+      const rowStyle = {
+        display: 'flex',
+        gap: 8,
+        width: '100%',
+        flexWrap: layout === 'distribute' ? 'nowrap' : 'nowrap',
+      };
+      if (layout === 'left') {
+        rowStyle.justifyContent = 'flex-start';
+      } else if (layout === 'right') {
+        rowStyle.justifyContent = 'flex-end';
+      } else if (layout === 'distribute') {
+        rowStyle.justifyContent = 'space-between';
+      } else if (layout === 'block') {
+        rowStyle.flexDirection = 'column';
+        rowStyle.alignItems = 'stretch';
+      }
       return (
-        <div key={el.id} className="preview-row" style={{ display: 'flex', gap: 8 }}>
-          {(el.children || []).map((child) => renderEl(child))}
+        <div key={el.id} className="preview-row" style={rowStyle}>
+          {(el.children || []).map((child) => renderEl(child, layout))}
         </div>
       );
     }
@@ -74,8 +92,18 @@ export default function FormPreview({ schema, onSubmit }) {
     const label = el.label || el.i18nKey || el.id;
     const isRequired = Boolean(el?.validations?.required?.enabled);
     const shouldShowLabelAbove = ['input', 'password', 'checkbox'].includes(el.type) && label;
+    const fieldStyle = {};
+    if (parentLayout === 'block') {
+      fieldStyle.width = '100%';
+    }
+    if (parentLayout === 'distribute') {
+      fieldStyle.flexGrow = 0;
+      fieldStyle.flexShrink = 1;
+      fieldStyle.flexBasis = 'auto';
+      fieldStyle.minWidth = 0;
+    }
     return (
-      <div key={el.id} className="preview-field">
+      <div key={el.id} className="preview-field" style={fieldStyle}>
         {shouldShowLabelAbove && (
           <label className="preview-label" htmlFor={el.id}>
             {label}
@@ -83,10 +111,11 @@ export default function FormPreview({ schema, onSubmit }) {
           </label>
         )}
         {el.type === 'label' && (
-          <div className="preview-label">
-            {label}
-            {isRequired && <span className="preview-required">*</span>}
-          </div>
+          <div
+            className="preview-label-text"
+            style={{ textAlign: el.textAlign || 'left' }}
+            dangerouslySetInnerHTML={{ __html: renderMarkdown(el.text || label || '') }}
+          />
         )}
         {el.type === 'input' && <input type="text" {...common} />}
         {el.type === 'password' && <input type="password" {...common} />}
@@ -101,7 +130,7 @@ export default function FormPreview({ schema, onSubmit }) {
 
   return (
     <form onSubmit={submit} className="preview-card">
-      {(schema?.elements || []).map(renderEl)}
+      {(schema?.elements || []).map((el) => renderEl(el, null))}
     </form>
   );
 }
